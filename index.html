@@ -77,9 +77,8 @@
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
 
-    let allRecords = []; // Only cloud data — no local fallback
+    let allRecords = [];
 
-    // Always start with empty table until cloud loads
     updateTables(allRecords);
 
     async function loadFromCloud() {
@@ -92,15 +91,13 @@
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
         } else if (res.status === 404) {
-          // First time: create empty basket
           allRecords = [];
           updateTables(allRecords);
           await saveToCloud();
-          statusEl.textContent = '🟢 Online — Ready (new)';
+          statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
         }
       } catch (e) {
-        console.log('Offline or error');
         allRecords = [];
         updateTables(allRecords);
         statusEl.textContent = '🔴 Offline — Changes will sync when online';
@@ -116,11 +113,10 @@
           body: JSON.stringify({ records: allRecords })
         });
       } catch (e) {
-        console.log('Save failed — will retry on next poll');
+        console.log('Save failed');
       }
     }
 
-    // Load immediately + poll every 3 seconds for fast sync
     loadFromCloud();
     setInterval(loadFromCloud, 3000);
 
@@ -152,7 +148,6 @@
 
       const record = { date, player, win, lose, net, playerDisplay: playerText };
 
-      // Optimistic update (show immediately)
       allRecords.unshift(record);
       updateTables(allRecords);
 
@@ -161,17 +156,17 @@
 
       await saveToCloud();
 
-      // Clear input
       document.getElementById('amountInput').value = '';
 
-      // Force refresh in case of race condition
       setTimeout(loadFromCloud, 500);
     }
 
-    window.deleteRecord = async function(index) {
+    // Fixed delete: uses unique key instead of index
+    window.deleteRecord = async function(date, player, net) {
       if (!confirm('刪除？所有人會看到')) return;
 
-      allRecords.splice(index, 1);
+      allRecords = allRecords.filter(r => !(r.date === date && r.player === player && r.net === net));
+
       updateTables(allRecords);
 
       await saveToCloud();
@@ -181,14 +176,14 @@
 
     function updateTables(records) {
       const tbody1 = document.querySelector('#recordsTable tbody');
-      tbody1.innerHTML = records.slice(0, 50).map((r, i) => `
+      tbody1.innerHTML = records.slice(0, 50).map(r => `
         <tr>
           <td>${r.date}</td>
           <td>${r.playerDisplay}</td>
           <td>$${r.win?.toLocaleString()}</td>
           <td>$${r.lose?.toLocaleString()}</td>
           <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-          <td><button class="delete-btn" onclick="deleteRecord(${i})">🗑️</button></td>
+          <td><button class="delete-btn" onclick="deleteRecord('${r.date}', '${r.player}', ${r.net})">🗑️</button></td>
         </tr>
       `).join('');
 
