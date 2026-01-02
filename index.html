@@ -1,142 +1,270 @@
-<script type="module">
-  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 Mahjong - Never Lose Data</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #FCE1F3 0%, #D7E9FF 50%, #CDEAC0 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 { text-align: center; color: #FF8AB3; font-size: 2.5em; margin-bottom: 10px; }
+    .input-card { background: white; border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; }
+    select, input[type="number"], input[type="date"] { padding: 12px 15px; border: 3px solid #BDE0FE; border-radius: 12px; font-size: 16px; font-family: inherit; min-width: 140px; }
+    button { background: linear-gradient(135deg, #FF8AB3, #FFB3D1); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 18px; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
+    button:hover:not(:disabled) { transform: scale(1.05); }
+    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 20px; text-align: left; font-weight: 700; }
+    td { padding: 18px 20px; border-bottom: 1px solid #eee; }
+    .positive { background: #CDEAC0 !important; font-weight: 700; }
+    .negative { background: #FFB3BA !important; font-weight: 700; }
+    .delete-btn { background: linear-gradient(135deg, #FF6B6B, #FF8E8E) !important; padding: 8px 12px !important; font-size: 14px !important; border-radius: 15px !important; }
+    .delete-btn:hover { transform: scale(1.1) !important; }
+    .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
+    .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
+    .offline { background: #FFF3E0; color: #EF6C00; }
+    .syncing { background: #E3F2FD; color: #1976D2; }
+    @media (max-width: 768px) {
+      .input-card { flex-direction: column; }
+      th, td { padding: 12px 8px; font-size: 14px; }
+      input, select { min-width: 100%; }
+    }
+  </style>
+  <script defer data-domain="mahjong2026.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script>
+  <script type="text/javascript" src="https://tiiny.host/ad-script.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>🎰 2026 Mahjong Records 🎰</h1>
+    <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete</p>
+    <div id="status" class="status offline">🔄 Connecting to cloud...</div>
 
-  const SUPABASE_URL = 'https://pwsgygqzxyzaxghyggme.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_oPBMZmrWLCFSxJqOaC8Lrw_78C8iLrt';
+    <form id="recordForm" class="input-card">
+      <input type="date" id="dateInput" value="2026-01-02">
+      <select id="playerSelect">
+        <option>Gina </option><option>Anders </option><option>Kaylee </option>
+        <option>Philip </option><option>Rosie </option><option>Anfern </option>
+      </select>
+      <input type="number" id="amountInput" placeholder="Amount HKD" step="10">
+      <button type="submit" id="addButton">Add ✨</button>
+    </form>
 
-  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <div class="stats-card">
+      <h3>📊 Records</h3>
+      <table id="recordsTable">
+        <thead><tr><th>Date</th><th>Player</th><th>Win</th><th>Lose</th><th>Net</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-  const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
-  const statusEl = document.getElementById('status');
-  const form = document.getElementById('recordForm');
-  const recordsTbody = document.querySelector('#recordsTable tbody');
+    <div class="stats-card">
+      <h3>💰 Totals</h3>
+      <table id="totalsTable">
+        <thead><tr><th>Player</th><th>Win</th><th>Lose</th><th>Net</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
-  let allRecords = [];
+  <script>
+    const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
+    const BASKET_NAME = 'records';
+    const API_BASE = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
 
-  async function loadRecords() {
-    const { data, error } = await supabase
-      .from('records')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
+    const statusEl = document.getElementById('status');
+    const form = document.getElementById('recordForm');
+    const addButton = document.getElementById('addButton');
+    const recordsTbody = document.querySelector('#recordsTable tbody');
 
-    if (error) {
-      statusEl.textContent = '🔴 Error loading data';
-      statusEl.className = 'status offline';
-      console.error(error);
-      return;
+    let allRecords = [];
+    let isBusy = false;
+    let pollInterval;
+
+    updateTables(allRecords);
+
+    async function loadFromCloud() {
+      if (isBusy) return;
+
+      try {
+        const res = await fetch(API_BASE);
+        if (res.ok) {
+          const data = await res.json();
+          allRecords = (data.records || []).map(r => ({
+            ...r,
+            uniqueId: r.uniqueId || Date.now() + Math.random().toString(36).substr(2),
+            createdAt: r.createdAt || 0
+          }));
+          allRecords.sort((a, b) => b.createdAt - a.createdAt);
+          updateTables(allRecords);
+          statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
+          statusEl.className = 'status connected';
+        } else if (res.status === 404) {
+          allRecords = [];
+          updateTables(allRecords);
+          await saveToCloud();
+          statusEl.textContent = '🟢 Online — Ready';
+          statusEl.className = 'status connected';
+        }
+      } catch (e) {
+        allRecords = [];
+        updateTables(allRecords);
+        statusEl.textContent = '🔴 Offline — Try again later';
+        statusEl.className = 'status offline';
+      }
     }
 
-    allRecords = data || [];
-    updateTables(allRecords);
-    statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
-    statusEl.className = 'status connected';
-  }
+    async function saveToCloud() {
+      try {
+        await fetch(API_BASE, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: allRecords })
+        });
+        return true;
+      } catch (e) {
+        console.log('Save failed', e);
+        return false;
+      }
+    }
 
-  // Instant real-time updates
-  const channel = supabase.channel('public:records')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'records' }, () => {
-      loadRecords();
-    })
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') loadRecords();
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(loadFromCloud, 3000);
+    }
+
+    loadFromCloud();
+    startPolling();
+
+    recordsTbody.addEventListener('click', async (e) => {
+      if (isBusy || !e.target.classList.contains('delete-btn')) return;
+
+      const uniqueId = e.target.dataset.id;
+      if (!confirm('刪除？所有人會看到')) return;
+
+      isBusy = true;
+      disableButtons(true);
+
+      statusEl.textContent = '🟠 Deleting...';
+      statusEl.className = 'status syncing';
+
+      clearInterval(pollInterval);
+
+      allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
+      const success = await saveToCloud();
+      if (success) {
+        await loadFromCloud();
+      } else {
+        alert('Delete failed - please try again');
+        await loadFromCloud();
+      }
+
+      startPolling();
+      isBusy = false;
+      disableButtons(false);
     });
 
-  async function addRecord() {
-    const date = document.getElementById('dateInput').value;
-    const playerText = document.getElementById('playerSelect').value.trim();
-    const player = playerText.split(' ')[0];
-    const amountStr = document.getElementById('amountInput').value.trim();
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await addRecord();
+    });
 
-    if (!date || !amountStr) return alert('請填日期和金額');
-    const amount = parseFloat(amountStr);
-    if (isNaN(amount) || amount === 0) return alert('請輸入有效金額');
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'amountInput') {
+        e.preventDefault();
+        addRecord();
+      }
+    });
 
-    const win = amount > 0 ? Math.abs(amount) : 0;
-    const lose = amount < 0 ? Math.abs(amount) : 0;
+    async function addRecord() {
+      if (isBusy) return;
 
-    statusEl.textContent = '🟠 Adding...';
-    statusEl.className = 'status syncing';
+      const date = document.getElementById('dateInput').value;
+      const playerText = document.getElementById('playerSelect').value.trim();
+      const player = playerText.split(' ')[0];
+      const amountStr = document.getElementById('amountInput').value.trim();
 
-    const { error } = await supabase
-      .from('records')
-      .insert({
+      if (!date || !amountStr) return alert('請填日期和金額');
+      const amount = parseFloat(amountStr);
+      if (isNaN(amount) || amount === 0) return alert('請輸入有效金額');
+
+      const win = amount > 0 ? Math.abs(amount) : 0;
+      const lose = amount < 0 ? Math.abs(amount) : 0;
+      const net = win - lose;
+
+      const newRecord = {
+        uniqueId: Date.now() + Math.random().toString(36).substr(2),
+        createdAt: Date.now(),
         date,
         player,
         win,
         lose,
-        player_display: playerText
+        net,
+        playerDisplay: playerText
+      };
+
+      isBusy = true;
+      disableButtons(true);
+
+      statusEl.textContent = '🟠 Adding...';
+      statusEl.className = 'status syncing';
+
+      clearInterval(pollInterval);
+
+      allRecords.unshift(newRecord);
+      const success = await saveToCloud();
+      if (success) {
+        await loadFromCloud();
+      } else {
+        alert('Add failed - please try again');
+        await loadFromCloud();
+      }
+
+      document.getElementById('amountInput').value = '';
+      startPolling();
+      isBusy = false;
+      disableButtons(false);
+    }
+
+    function disableButtons(disabled) {
+      addButton.disabled = disabled;
+      document.querySelectorAll('.delete-btn').forEach(btn => btn.disabled = disabled);
+    }
+
+    function updateTables(records) {
+      recordsTbody.innerHTML = records.slice(0, 50).map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td>${r.playerDisplay}</td>
+          <td>$${r.win?.toLocaleString()}</td>
+          <td>$${r.lose?.toLocaleString()}</td>
+          <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
+          <td><button class="delete-btn" data-id="${r.uniqueId}">🗑️</button></td>
+        </tr>
+      `).join('');
+
+      const totals = {};
+      players.forEach(p => totals[p] = {win:0, lose:0});
+      records.forEach(r => {
+        if (totals[r.player]) {
+          totals[r.player].win += r.win || 0;
+          totals[r.player].lose += r.lose || 0;
+        }
       });
 
-    if (error) {
-      alert('Add failed');
-      console.error(error);
+      const tbody2 = document.querySelector('#totalsTable tbody');
+      tbody2.innerHTML = players.map(p => {
+        const net = totals[p].win - totals[p].lose;
+        return `<tr class="${net > 0 ? 'positive' : net < 0 ? 'negative' : ''}">
+          <td><strong>${p}</strong></td>
+          <td>$${totals[p].win.toLocaleString()}</td>
+          <td>$${totals[p].lose.toLocaleString()}</td>
+          <td><strong>${net>0?'+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>
+        </tr>`;
+      }).join('');
     }
-
-    document.getElementById('amountInput').value = '';
-  }
-
-  recordsTbody.addEventListener('click', async (e) => {
-    if (!e.target.classList.contains('delete-btn')) return;
-
-    const recordId = e.target.dataset.id;
-    if (!confirm('刪除？所有人會看到')) return;
-
-    statusEl.textContent = '🟠 Deleting...';
-    statusEl.className = 'status syncing';
-
-    const { error } = await supabase
-      .from('records')
-      .delete()
-      .eq('id', recordId);
-
-    if (error) {
-      alert('Delete failed');
-      console.error(error);
-    }
-  });
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    addRecord();
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && e.target.id === 'amountInput') {
-      e.preventDefault();
-      addRecord();
-    }
-  });
-
-  function updateTables(records) {
-    recordsTbody.innerHTML = records.slice(0, 50).map(r => `
-      <tr>
-        <td>${r.date}</td>
-        <td>${r.player_display}</td>
-        <td>$${Number(r.win).toLocaleString()}</td>
-        <td>$${Number(r.lose).toLocaleString()}</td>
-        <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-        <td><button class="delete-btn" data-id="${r.id}">🗑️</button></td>
-      </tr>
-    `).join('');
-
-    const totals = {};
-    players.forEach(p => totals[p] = {win:0, lose:0});
-    records.forEach(r => {
-      totals[r.player].win += Number(r.win || 0);
-      totals[r.player].lose += Number(r.lose || 0);
-    });
-
-    const tbody2 = document.querySelector('#totalsTable tbody');
-    tbody2.innerHTML = players.map(p => {
-      const net = totals[p].win - totals[p].lose;
-      return `<tr class="${net > 0 ? 'positive' : net < 0 ? 'negative' : ''}">
-        <td><strong>${p}</strong></td>
-        <td>$${totals[p].win.toLocaleString()}</td>
-        <td>$${totals[p].lose.toLocaleString()}</td>
-        <td><strong>${net>0?'+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>
-      </tr>`;
-    }).join('');
-  }
-
-  window.addEventListener('beforeunload', () => supabase.removeChannel(channel));
-</script>
+  </script>
+</body>
+</html>
