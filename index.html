@@ -1,217 +1,228 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 Mahjong - Never Lose Data</title>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        /* 你的完整樣式 */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #FCE1F3 0%, #D7E9FF 50%, #CDEAC0 100%); min-height: 100vh; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        h1 { text-align: center; color: #FF8AB3; font-size: 2.5em; margin-bottom: 10px; }
-        .input-card { background: white; border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; }
-        select, input[type="number"], input[type="date"] { padding: 12px 15px; border: 3px solid #BDE0FE; border-radius: 12px; font-size: 16px; font-family: inherit; min-width: 140px; }
-        button { background: linear-gradient(135deg, #FF8AB3, #FFB3D1); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 18px; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
-        button:hover:not(:disabled) { transform: scale(1.05); }
-        .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 20px; text-align: left; font-weight: 700; }
-        td { padding: 18px 20px; border-bottom: 1px solid #eee; }
-        .positive { background: #CDEAC0 !important; font-weight: 700; }
-        .negative { background: #FFB3BA !important; font-weight: 700; }
-        .delete-btn { background: linear-gradient(135deg, #FF6B6B, #FF8E8E) !important; padding: 8px 12px !important; font-size: 14px !important; border-radius: 15px !important; }
-        .delete-btn:hover { transform: scale(1.1) !important; }
-        .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
-        .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
-        .offline { background: #FFF3E0; color: #EF6C00; }
-        .syncing { background: #E3F2FD; color: #1976D2; }
-        @media (max-width: 768px) { .input-card { flex-direction: column; } th, td { padding: 12px 8px; font-size: 14px; } input, select { min-width: 100%; } }
-    </style>
-<script defer data-domain="mahjong2026.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script><script type="text/javascript" src="https://tiiny.host/ad-script.js"></script></head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 Mahjong - Never Lose Data</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #FCE1F3 0%, #D7E9FF 50%, #CDEAC0 100%); min-height: 100vh; padding: 20px; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 { text-align: center; color: #FF8AB3; font-size: 2.5em; margin-bottom: 10px; }
+    .input-card { background: white; border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; }
+    select, input[type="number"], input[type="date"] { padding: 12px 15px; border: 3px solid #BDE0FE; border-radius: 12px; font-size: 16px; font-family: inherit; min-width: 140px; }
+    button { background: linear-gradient(135deg, #FF8AB3, #FFB3D1); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 18px; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
+    button:hover:not(:disabled) { transform: scale(1.05); }
+    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 20px; text-align: left; font-weight: 700; }
+    td { padding: 18px 20px; border-bottom: 1px solid #eee; }
+    .positive { background: #CDEAC0 !important; font-weight: 700; }
+    .negative { background: #FFB3BA !important; font-weight: 700; }
+    .delete-btn { background: linear-gradient(135deg, #FF6B6B, #FF8E8E) !important; padding: 8px 12px !important; font-size: 14px !important; border-radius: 15px !important; }
+    .delete-btn:hover { transform: scale(1.1) !important; }
+    .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
+    .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
+    .offline { background: #FFF3E0; color: #EF6C00; }
+    .syncing { background: #E3F2FD; color: #1976D2; }
+    .hint { font-size: 14px; color: #666; text-align: center; width: 100%; margin-top: 5px; }
+    @media (max-width: 768px) {
+      .input-card { flex-direction: column; }
+      th, td { padding: 12px 8px; font-size: 14px; }
+      input, select { min-width: 100%; }
+    }
+  </style>
+  <script defer data-domain="mahjong2026.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script>
+  <script type="text/javascript" src="https://tiiny.host/ad-script.js"></script>
+</head>
 <body>
-    <div class="container">
-        <h1>🎰 2026 Mahjong Records 🎰</h1>
-        <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete </p>
-        
-        <div id="status" class="status offline">💾 Loading local backup...</div>
-        
-        <form id="recordForm" class="input-card">
-            <input type="date" id="dateInput" value="2026-01-02">
-            <select id="playerSelect">
-                <option>Gina </option><option>Anders </option><option>Kaylee </option>
-                <option>Philip </option><option>Rosie </option><option>Anfern </option>
-            </select>
-            <input type="number" id="winInput" placeholder="Win HKD" min="0" step="10">
-            <input type="number" id="loseInput" placeholder="Lose HKD" min="0" step="10">
-            <button type="submit">Add ✨</button>
-        </form>
-        
-        <div class="stats-card">
-            <h3>📊 Records</h3>
-            <table id="recordsTable"><thead><tr><th>Date</th><th>Player</th><th>Win</th><th>Lose</th><th>Net</th><th></th></tr></thead><tbody></tbody></table>
-        </div>
-        
-        <div class="stats-card">
-            <h3>💰 Totals</h3>
-            <table id="totalsTable"><thead><tr><th>Player</th><th>Win</th><th>Lose</th><th>Net</th></tr></thead><tbody></tbody></table>
-        </div>
+  <div class="container">
+    <h1>🎰 2026 Mahjong Records 🎰</h1>
+    <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete</p>
+    <div id="status" class="status offline">💾 Loading local backup...</div>
+
+    <form id="recordForm" class="input-card">
+      <input type="date" id="dateInput" value="2026-01-02">
+      <select id="playerSelect">
+        <option>Gina </option><option>Anders </option><option>Kaylee </option>
+        <option>Philip </option><option>Rosie </option><option>Anfern </option>
+      </select>
+      <input type="number" id="amountInput" placeholder="Amount (positive = win, negative = lose)" step="10">
+      <button type="submit">Add ✨</button>
+    </form>
+    <div class="hint">Example: +500 → win $500 | -300 → lose $300</div>
+
+    <div class="stats-card">
+      <h3>📊 Records</h3>
+      <table id="recordsTable">
+        <thead><tr><th>Date</th><th>Player</th><th>Win</th><th>Lose</th><th>Net</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
 
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
-        import { 
-            getFirestore, collection, addDoc, deleteDoc, doc, 
-            onSnapshot, serverTimestamp, orderBy, query, enableIndexedDbPersistence 
-        } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
+    <div class="stats-card">
+      <h3>💰 Totals</h3>
+      <table id="totalsTable">
+        <thead><tr><th>Player</th><th>Win</th><th>Lose</th><th>Net</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyD3QrCLU4Y8J1QW3qZzmxj9qfxyaF5jFxI",
-            authDomain: "mahjong-2026.firebaseapp.com",
-            projectId: "mahjong-2026",
-            storageBucket: "mahjong-2026.firebasestorage.app",
-            messagingSenderId: "437677607060",
-            appId: "1:437677607060:web:ec4cbe0e1dbc3faf5d8c81"
-        };
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, orderBy, query, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        // 🔥 三層備份：IndexedDB + localStorage + Cloud
-        enableIndexedDbPersistence(db).catch(() => {}); // 靜默啟用
-        
-        const recordsRef = collection(db, 'mahjong_records');
-        const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
-        const statusEl = document.getElementById('status');
-        const form = document.getElementById('recordForm');
+    const firebaseConfig = {
+      apiKey: "AIzaSyD3QrCLU4Y8J1QW3qZzmxj9qfxyaF5jFxI",
+      authDomain: "mahjong-2026.firebaseapp.com",
+      projectId: "mahjong-2026",
+      storageBucket: "mahjong-2026.firebasestorage.app",
+      messagingSenderId: "437677607060",
+      appId: "1:437677607060:web:ec4cbe0e1dbc3faf5d8c81"
+    };
 
-        // localStorage 備份
-        const LOCAL_KEY = 'mahjong2026_backup';
-        function getLocal() { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); }
-        function saveLocal(records) { localStorage.setItem(LOCAL_KEY, JSON.stringify(records)); }
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    enableIndexedDbPersistence(db).catch(() => {});
 
-        // 頁面載入：先顯示 local 備份
-        let allRecords = getLocal();
-        updateTables(allRecords);
-        statusEl.textContent = '💾 Local backup loaded';
-        statusEl.className = 'status offline';
+    const recordsRef = collection(db, 'mahjong_records');
+    const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
+    const statusEl = document.getElementById('status');
+    const form = document.getElementById('recordForm');
 
-        // 🔥 Cloud 即時同步
-        const q = query(recordsRef, orderBy('timestamp', 'desc'));
-        onSnapshot(q, (snapshot) => {
-            const cloudRecords = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            
-            // 合併：cloud + local（避免重複）
-            const merged = [...cloudRecords];
-            getLocal().forEach(localR => {
-                if (!merged.some(r => r.date === localR.date && r.player === localR.player && r.win === localR.win)) {
-                    merged.push(localR);
-                }
-            });
-            
-            allRecords = merged;
-            saveLocal(merged);
-            updateTables(merged);
-            statusEl.innerHTML = `🟢 Synced <strong>(${cloudRecords.length} cloud + ${getLocal().length - cloudRecords.length} local)</strong>`;
-            statusEl.className = 'status connected';
-        }, () => {
-            // 離線時用 local
-            statusEl.textContent = '🔄 Offline - Local backup active';
-            statusEl.className = 'status offline';
-            updateTables(getLocal());
-        });
+    const LOCAL_KEY = 'mahjong2026_backup';
+    function getLocal() { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); }
+    function saveLocal(records) { localStorage.setItem(LOCAL_KEY, JSON.stringify(records)); }
 
-        // 🔥 Enter 鍵 + 表單提交
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await addRecord();
-        });
+    let allRecords = getLocal();
+    updateTables(allRecords);
+    statusEl.textContent = '💾 Local backup loaded';
+    statusEl.className = 'status offline';
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && 
-                ['winInput', 'loseInput', 'dateInput'].includes(e.target.id)) {
-                e.preventDefault();
-                addRecord();
-            }
-        });
-
-        async function addRecord() {
-            const date = document.getElementById('dateInput').value;
-            const playerText = document.getElementById('playerSelect').value;
-            const player = playerText.split(' ')[0];
-            const win = parseFloat(document.getElementById('winInput').value) || 0;
-            const lose = parseFloat(document.getElementById('loseInput').value) || 0;
-
-            if (!date || win + lose === 0) return alert('請填日期和金額');
-
-            const record = { date, player, win, lose, net: win - lose, playerDisplay: playerText, timestamp: new Date().toISOString() };
-            
-            // 1. 先存 local（立即顯示）
-            const localRecords = getLocal();
-            localRecords.unshift(record); // 加到最前
-            saveLocal(localRecords);
-            updateTables(localRecords);
-            
-            // 2. 推 cloud（失敗也沒關係）
-            statusEl.textContent = '🟠 Syncing...';
-            statusEl.className = 'status syncing';
-            try {
-                await addDoc(recordsRef, { ...record, timestamp: serverTimestamp() });
-            } catch (e) {
-                console.log('Cloud failed, local safe:', e);
-            }
-            
-            // 清空
-            document.getElementById('winInput').value = '';
-            document.getElementById('loseInput').value = '';
+    const q = query(recordsRef, orderBy('timestamp', 'desc'));
+    onSnapshot(q, (snapshot) => {
+      const cloudRecords = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const merged = [...cloudRecords];
+      getLocal().forEach(localR => {
+        if (!merged.some(r => r.date === localR.date && r.player === localR.player && r.win === localR.win && r.lose === localR.lose)) {
+          merged.push(localR);
         }
+      });
+      allRecords = merged;
+      saveLocal(merged);
+      updateTables(merged);
+      statusEl.innerHTML = `🟢 Synced <strong>(${cloudRecords.length} cloud + ${getLocal().length - cloudRecords.length} local)</strong>`;
+      statusEl.className = 'status connected';
+    }, () => {
+      statusEl.textContent = '🔄 Offline - Local backup active';
+      statusEl.className = 'status offline';
+      updateTables(getLocal());
+    });
 
-        window.deleteRecord = async (recordId) => {
-            if (!confirm('刪除？所有人同步')) return;
-            
-            // 1. 先從 local 刪除
-            const localRecords = getLocal().filter(r => r.id !== recordId);
-            saveLocal(localRecords);
-            
-            // 2. 刪 cloud
-            try {
-                await deleteDoc(doc(db, 'mahjong_records', recordId));
-            } catch (e) {
-                console.log('Cloud delete failed, local updated');
-            }
-            
-            updateTables(localRecords);
-        };
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await addRecord();
+    });
 
-        function updateTables(records) {
-            // 記錄表
-            const tbody1 = document.querySelector('#recordsTable tbody');
-            tbody1.innerHTML = records.slice(0, 50).map(r => `
-                <tr>
-                    <td>${r.date}</td>
-                    <td>${r.playerDisplay}</td>
-                    <td>$${r.win?.toLocaleString()}</td>
-                    <td>$${r.lose?.toLocaleString()}</td>
-                    <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-                    <td><button class="delete-btn" onclick="deleteRecord('${r.id || r.tempId}')">${r.id ? '🗑️' : '💾'}</button></td>
-                </tr>
-            `).join('');
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'amountInput') {
+        e.preventDefault();
+        addRecord();
+      }
+    });
 
-            // 總計
-            const totals = {};
-            players.forEach(p => totals[p] = {win:0,lose:0});
-            records.forEach(r => { if (totals[r.player]) { totals[r.player].win += r.win || 0; totals[r.player].lose += r.lose || 0; } });
-            
-            const tbody2 = document.querySelector('#totalsTable tbody');
-            tbody2.innerHTML = players.map(p => {
-                const net = totals[p].win - totals[p].lose;
-                return `<tr class="${net > 0 ? 'positive' : net < 0 ? 'negative' : ''}">
-                    <td><strong>${p}</strong></td><td>$${totals[p].win.toLocaleString()}</td><td>$${totals[p].lose.toLocaleString()}</td><td><strong>${net>0?'+' : ''}$${net.toLocaleString()}</strong></td>
-                </tr>`;
-            }).join('');
+    async function addRecord() {
+      const date = document.getElementById('dateInput').value;
+      const playerText = document.getElementById('playerSelect').value;
+      const player = playerText.split(' ')[0].trim();
+      const amountStr = document.getElementById('amountInput').value.trim();
+
+      if (!date || !amountStr) return alert('請填日期和金額');
+      const amount = parseFloat(amountStr);
+      if (isNaN(amount) || amount === 0) return alert('請輸入有效金額（正數贏，負數輸）');
+
+      const win = amount > 0 ? Math.abs(amount) : 0;
+      const lose = amount < 0 ? Math.abs(amount) : 0;
+      const net = win - lose;
+
+      const record = {
+        date,
+        player,
+        win,
+        lose,
+        net,
+        playerDisplay: playerText,
+        timestamp: new Date().toISOString()
+      };
+
+      // 1. Save to local first (instant feedback)
+      const localRecords = getLocal();
+      localRecords.unshift(record);
+      saveLocal(localRecords);
+      updateTables(localRecords);
+
+      // 2. Push to cloud
+      statusEl.textContent = '🟠 Syncing...';
+      statusEl.className = 'status syncing';
+      try {
+        await addDoc(recordsRef, { ...record, timestamp: serverTimestamp() });
+      } catch (e) {
+        console.log('Cloud failed, local safe:', e);
+      }
+
+      // Clear input
+      document.getElementById('amountInput').value = '';
+    }
+
+    window.deleteRecord = async (recordId) => {
+      if (!confirm('刪除？所有人同步')) return;
+
+      const localRecords = getLocal().filter(r => r.id !== recordId);
+      saveLocal(localRecords);
+
+      try {
+        await deleteDoc(doc(db, 'mahjong_records', recordId));
+      } catch (e) {
+        console.log('Cloud delete failed, local updated');
+      }
+      updateTables(localRecords);
+    };
+
+    function updateTables(records) {
+      const tbody1 = document.querySelector('#recordsTable tbody');
+      tbody1.innerHTML = records.slice(0, 50).map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td>${r.playerDisplay}</td>
+          <td>$${r.win?.toLocaleString()}</td>
+          <td>$${r.lose?.toLocaleString()}</td>
+          <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
+          <td><button class="delete-btn" onclick="deleteRecord('${r.id || r.tempId}')">${r.id ? '🗑️' : '💾'}</button></td>
+        </tr>
+      `).join('');
+
+      const totals = {};
+      players.forEach(p => totals[p] = {win:0, lose:0});
+      records.forEach(r => {
+        if (totals[r.player]) {
+          totals[r.player].win += r.win || 0;
+          totals[r.player].lose += r.lose || 0;
         }
-    </script>
+      });
+
+      const tbody2 = document.querySelector('#totalsTable tbody');
+      tbody2.innerHTML = players.map(p => {
+        const net = totals[p].win - totals[p].lose;
+        return `<tr class="${net > 0 ? 'positive' : net < 0 ? 'negative' : ''}">
+          <td><strong>${p}</strong></td>
+          <td>$${totals[p].win.toLocaleString()}</td>
+          <td>$${totals[p].lose.toLocaleString()}</td>
+          <td><strong>${net>0?'+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>
+        </tr>`;
+      }).join('');
+    }
+  </script>
 </body>
 </html>
