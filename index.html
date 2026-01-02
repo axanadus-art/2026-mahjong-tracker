@@ -164,7 +164,7 @@
         const net = nets[p];
         const sign = net > 0 ? '+' : net < 0 ? '' : '';
         const cls = net > 0 ? 'net-positive' : net < 0 ? 'net-negative' : '';
-        const emoji = net > 0 ? '🟢' : net < 0 ? '🔴' : '⚪';
+        const emoji = net > 0 ? '' : net < 0 ? '' : '';
         return `<div class="player-sum ${cls}"><strong>${p}</strong><br>${emoji} ${sign}${net}</div>`;
       }).join('');
     }
