@@ -48,7 +48,7 @@
         <option>Philip </option><option>Rosie </option><option>Anfern </option>
       </select>
       <input type="number" id="amountInput" placeholder="Amount HKD" step="10">
-      <button type="submit">Add ✨</button>
+      <button type="submit" id="addButton">Add ✨</button>
     </form>
 
     <div class="stats-card">
@@ -75,21 +75,29 @@
 
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
+    const form = document.getElementById('recordForm');
+    const addButton = document.getElementById('addButton');
     const recordsTbody = document.querySelector('#recordsTable tbody');
 
     let allRecords = [];
+    let isBusy = false;
+    let pollInterval;
 
     updateTables(allRecords);
 
     async function loadFromCloud() {
+      if (isBusy) return;
+
       try {
         const res = await fetch(API_BASE);
         if (res.ok) {
           const data = await res.json();
-          allRecords = (data.records || []).map((r, index) => ({
+          allRecords = (data.records || []).map(r => ({
             ...r,
-            uniqueId: r.uniqueId || `legacy-${index}-${Date.now()}`
+            uniqueId: r.uniqueId || Date.now() + Math.random().toString(36).substr(2),
+            createdAt: r.createdAt || 0
           }));
+          allRecords.sort((a, b) => b.createdAt - a.createdAt);
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
@@ -103,7 +111,7 @@
       } catch (e) {
         allRecords = [];
         updateTables(allRecords);
-        statusEl.textContent = '🔴 Offline — Changes will sync when online';
+        statusEl.textContent = '🔴 Offline — Try again later';
         statusEl.className = 'status offline';
       }
     }
@@ -115,31 +123,50 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: allRecords })
         });
+        return true;
       } catch (e) {
-        console.log('Save failed');
+        console.log('Save failed', e);
+        return false;
       }
     }
 
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(loadFromCloud, 3000);
+    }
+
     loadFromCloud();
-    setInterval(loadFromCloud, 3000);
+    startPolling();
 
-    // Event delegation for delete buttons
     recordsTbody.addEventListener('click', async (e) => {
-      if (e.target.classList.contains('delete-btn')) {
-        const button = e.target;
-        const uniqueId = button.dataset.id;
-        if (!confirm('刪除？所有人會看到')) return;
+      if (isBusy || !e.target.classList.contains('delete-btn')) return;
 
-        statusEl.textContent = '🟠 Deleting...';
-        statusEl.className = 'status syncing';
+      const uniqueId = e.target.dataset.id;
+      if (!confirm('刪除？所有人會看到')) return;
 
-        allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
-        await saveToCloud();
-        await loadFromCloud(); // Full refresh to ensure consistency
+      isBusy = true;
+      disableButtons(true);
+
+      statusEl.textContent = '🟠 Deleting...';
+      statusEl.className = 'status syncing';
+
+      clearInterval(pollInterval);
+
+      allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
+      const success = await saveToCloud();
+      if (success) {
+        await loadFromCloud();
+      } else {
+        alert('Delete failed - please try again');
+        await loadFromCloud();
       }
+
+      startPolling();
+      isBusy = false;
+      disableButtons(false);
     });
 
-    document.getElementById('recordForm').addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       await addRecord();
     });
@@ -152,6 +179,8 @@
     });
 
     async function addRecord() {
+      if (isBusy) return;
+
       const date = document.getElementById('dateInput').value;
       const playerText = document.getElementById('playerSelect').value.trim();
       const player = playerText.split(' ')[0];
@@ -166,7 +195,8 @@
       const net = win - lose;
 
       const newRecord = {
-        uniqueId: Date.now() + '-' + Math.random().toString(36).substr(2, 9), // Super unique
+        uniqueId: Date.now() + Math.random().toString(36).substr(2),
+        createdAt: Date.now(),
         date,
         player,
         win,
@@ -175,14 +205,32 @@
         playerDisplay: playerText
       };
 
+      isBusy = true;
+      disableButtons(true);
+
       statusEl.textContent = '🟠 Adding...';
       statusEl.className = 'status syncing';
 
+      clearInterval(pollInterval);
+
       allRecords.unshift(newRecord);
-      await saveToCloud();
-      await loadFromCloud();
+      const success = await saveToCloud();
+      if (success) {
+        await loadFromCloud();
+      } else {
+        alert('Add failed - please try again');
+        await loadFromCloud();
+      }
 
       document.getElementById('amountInput').value = '';
+      startPolling();
+      isBusy = false;
+      disableButtons(false);
+    }
+
+    function disableButtons(disabled) {
+      addButton.disabled = disabled;
+      document.querySelectorAll('.delete-btn').forEach(btn => btn.disabled = disabled);
     }
 
     function updateTables(records) {
