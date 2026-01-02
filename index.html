@@ -75,7 +75,7 @@
 
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
-    const form = document.getElementById('recordForm');
+    const recordsTbody = document.querySelector('#recordsTable tbody');
 
     let allRecords = [];
 
@@ -86,9 +86,9 @@
         const res = await fetch(API_BASE);
         if (res.ok) {
           const data = await res.json();
-          allRecords = (data.records || []).map(r => ({
+          allRecords = (data.records || []).map((r, index) => ({
             ...r,
-            id: r.id || Date.now() + Math.random() // Ensure every record has unique id
+            uniqueId: r.uniqueId || `legacy-${index}-${Date.now()}`
           }));
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
@@ -123,7 +123,23 @@
     loadFromCloud();
     setInterval(loadFromCloud, 3000);
 
-    form.addEventListener('submit', async (e) => {
+    // Event delegation for delete buttons
+    recordsTbody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('delete-btn')) {
+        const button = e.target;
+        const uniqueId = button.dataset.id;
+        if (!confirm('刪除？所有人會看到')) return;
+
+        statusEl.textContent = '🟠 Deleting...';
+        statusEl.className = 'status syncing';
+
+        allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
+        await saveToCloud();
+        await loadFromCloud(); // Full refresh to ensure consistency
+      }
+    });
+
+    document.getElementById('recordForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       await addRecord();
     });
@@ -150,7 +166,7 @@
       const net = win - lose;
 
       const newRecord = {
-        id: Date.now(), // Unique ID
+        uniqueId: Date.now() + '-' + Math.random().toString(36).substr(2, 9), // Super unique
         date,
         player,
         win,
@@ -164,32 +180,20 @@
 
       allRecords.unshift(newRecord);
       await saveToCloud();
-      await loadFromCloud(); // Refresh to confirm
+      await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
     }
 
-    window.deleteRecord = async function(id) {
-      if (!confirm('刪除？所有人會看到')) return;
-
-      statusEl.textContent = '🟠 Deleting...';
-      statusEl.className = 'status syncing';
-
-      allRecords = allRecords.filter(r => r.id !== id);
-      await saveToCloud();
-      await loadFromCloud(); // Refresh to confirm
-    };
-
     function updateTables(records) {
-      const tbody1 = document.querySelector('#recordsTable tbody');
-      tbody1.innerHTML = records.slice(0, 50).map(r => `
+      recordsTbody.innerHTML = records.slice(0, 50).map(r => `
         <tr>
           <td>${r.date}</td>
           <td>${r.playerDisplay}</td>
           <td>$${r.win?.toLocaleString()}</td>
           <td>$${r.lose?.toLocaleString()}</td>
           <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-          <td><button class="delete-btn" onclick="deleteRecord(${r.id})">🗑️</button></td>
+          <td><button class="delete-btn" data-id="${r.uniqueId}">🗑️</button></td>
         </tr>
       `).join('');
 
