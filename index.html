@@ -39,7 +39,7 @@
   <div class="container">
     <h1>🎰 2026 Mahjong Records 🎰</h1>
     <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete</p>
-    <div id="status" class="status offline">💾 Loading local backup...</div>
+    <div id="status" class="status offline">🔄 Connecting to cloud...</div>
 
     <form id="recordForm" class="input-card">
       <input type="date" id="dateInput" value="2026-01-02">
@@ -77,51 +77,37 @@
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
 
-    const LOCAL_KEY = 'mahjong2026_backup';
-    function getLocal() { return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]'); }
-    function saveLocal(records) { localStorage.setItem(LOCAL_KEY, JSON.stringify(records)); }
+    let allRecords = []; // Only cloud data — no local fallback
 
-    let allRecords = getLocal();
+    // Always start with empty table until cloud loads
     updateTables(allRecords);
-    statusEl.textContent = '💾 Local backup loaded';
-    statusEl.className = 'status offline';
 
-    // Load from cloud
     async function loadFromCloud() {
       try {
         const res = await fetch(API_BASE);
         if (res.ok) {
           const data = await res.json();
-          const cloudRecords = data.records || [];
-          // Merge: cloud first, then add any local-only records
-          const merged = [...cloudRecords];
-          getLocal().forEach(localR => {
-            if (!merged.some(r => r.date === localR.date && r.player === localR.player && r.net === localR.net)) {
-              merged.push(localR);
-            }
-          });
-          allRecords = merged;
-          saveLocal(merged);
-          updateTables(merged);
-          statusEl.textContent = `🟢 Cloud synced (${merged.length} records)`;
+          allRecords = data.records || [];
+          updateTables(allRecords);
+          statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
-          // If we added local-only records, push them back to cloud
-          if (merged.length > cloudRecords.length) {
-            await saveToCloud();
-          }
         } else if (res.status === 404) {
-          // Basket doesn't exist yet → create it
+          // First time: create empty basket
+          allRecords = [];
+          updateTables(allRecords);
           await saveToCloud();
-          loadFromCloud();
+          statusEl.textContent = '🟢 Online — Ready (new)';
+          statusEl.className = 'status connected';
         }
       } catch (e) {
-        console.log('Cloud load failed, using local');
-        statusEl.textContent = '🔄 Offline - Local active';
+        console.log('Offline or error');
+        allRecords = [];
+        updateTables(allRecords);
+        statusEl.textContent = '🔴 Offline — Changes will sync when online';
         statusEl.className = 'status offline';
       }
     }
 
-    // Save to cloud
     async function saveToCloud() {
       try {
         await fetch(API_BASE, {
@@ -130,13 +116,13 @@
           body: JSON.stringify({ records: allRecords })
         });
       } catch (e) {
-        console.log('Cloud save failed');
+        console.log('Save failed — will retry on next poll');
       }
     }
 
-    // Initial load + poll every 5 seconds for real-time feel
+    // Load immediately + poll every 3 seconds for fast sync
     loadFromCloud();
-    setInterval(loadFromCloud, 5000);
+    setInterval(loadFromCloud, 3000);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -166,27 +152,31 @@
 
       const record = { date, player, win, lose, net, playerDisplay: playerText };
 
-      // Instant local update
+      // Optimistic update (show immediately)
       allRecords.unshift(record);
-      saveLocal(allRecords);
       updateTables(allRecords);
 
       statusEl.textContent = '🟠 Syncing...';
       statusEl.className = 'status syncing';
 
-      // Push to cloud
       await saveToCloud();
 
+      // Clear input
       document.getElementById('amountInput').value = '';
+
+      // Force refresh in case of race condition
+      setTimeout(loadFromCloud, 500);
     }
 
     window.deleteRecord = async function(index) {
       if (!confirm('刪除？所有人會看到')) return;
 
       allRecords.splice(index, 1);
-      saveLocal(allRecords);
       updateTables(allRecords);
+
       await saveToCloud();
+
+      setTimeout(loadFromCloud, 500);
     };
 
     function updateTables(records) {
