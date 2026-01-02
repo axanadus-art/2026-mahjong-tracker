@@ -1,599 +1,190 @@
 <!DOCTYPE html>
-<html lang="zh-HK">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 Mahjong Tracker</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', 'Microsoft YaHei', sans-serif;
-            background: linear-gradient(135deg, #f8f0ff 0%, #fff5f7 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            color: #a8669f;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(168, 102, 159, 0.1);
-        }
-
-        .header p {
-            color: #d9a8d4;
-            font-size: 1.1em;
-        }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 25px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        select, button {
-            padding: 10px 20px;
-            border: 2px solid #e8d5f2;
-            border-radius: 20px;
-            font-size: 1em;
-            cursor: pointer;
-            background: white;
-            color: #a8669f;
-            transition: all 0.3s;
-            font-weight: bold;
-        }
-
-        select:hover, button:hover {
-            background: #f8e8ff;
-            border-color: #d9a8d4;
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        .calendar {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 12px;
-            margin-bottom: 30px;
-        }
-
-        .day-header {
-            text-align: center;
-            font-weight: bold;
-            color: #a8669f;
-            padding: 15px;
-            background: linear-gradient(135deg, #f0e6f7 0%, #ffe8f5 100%);
-            border-radius: 12px;
-            font-size: 1.1em;
-        }
-
-        .day-cell {
-            background: white;
-            border: 2px solid #f0e6f7;
-            border-radius: 12px;
-            padding: 12px;
-            min-height: 120px;
-            cursor: pointer;
-            transition: all 0.3s;
-            position: relative;
-            box-shadow: 0 2px 8px rgba(168, 102, 159, 0.08);
-        }
-
-        .day-cell:hover {
-            border-color: #d9a8d4;
-            box-shadow: 0 4px 12px rgba(168, 102, 159, 0.15);
-            transform: translateY(-2px);
-        }
-
-        .day-cell.other-month {
-            background: #f9f5fc;
-            color: #d4c5e0;
-            cursor: default;
-        }
-
-        .day-cell.other-month:hover {
-            border-color: #f0e6f7;
-            box-shadow: 0 2px 8px rgba(168, 102, 159, 0.08);
-            transform: none;
-        }
-
-        .day-number {
-            font-weight: bold;
-            color: #a8669f;
-            margin-bottom: 6px;
-            font-size: 1.1em;
-        }
-
-        .day-data {
-            font-size: 0.85em;
-            color: #b388aa;
-            max-height: 80px;
-            overflow-y: auto;
-        }
-
-        .day-data-item {
-            margin: 3px 0;
-            padding: 2px 0;
-            border-bottom: 1px solid #f0e6f7;
-        }
-
-        .day-data-item:last-child {
-            border-bottom: none;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(168, 102, 159, 0.5);
-            animation: fadeIn 0.3s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-content {
-            background: linear-gradient(135deg, #fff9ff 0%, #fff5f7 100%);
-            margin: 50px auto;
-            padding: 30px;
-            border: 3px solid #e8d5f2;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(168, 102, 159, 0.2);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-header h2 {
-            color: #a8669f;
-            font-size: 1.5em;
-        }
-
-        .close-btn {
-            font-size: 2em;
-            font-weight: bold;
-            color: #d9a8d4;
-            cursor: pointer;
-            background: none;
-            border: none;
-            padding: 0;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: all 0.3s;
-        }
-
-        .close-btn:hover {
-            background: #f0e6f7;
-            color: #a8669f;
-        }
-
-        .player-inputs {
-            display: grid;
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .player-input-group {
-            background: #f8e8ff;
-            padding: 15px;
-            border-radius: 12px;
-            border: 2px solid #e8d5f2;
-        }
-
-        .player-input-group label {
-            display: block;
-            color: #a8669f;
-            font-weight: bold;
-            margin-bottom: 8px;
-            font-size: 0.95em;
-        }
-
-        .player-input-group input {
-            width: 100%;
-            padding: 8px 12px;
-            border: 2px solid #e8d5f2;
-            border-radius: 8px;
-            font-size: 0.9em;
-            margin-bottom: 6px;
-        }
-
-        .player-input-group input:focus {
-            outline: none;
-            border-color: #d9a8d4;
-            background: #fef5fe;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .modal-buttons button {
-            flex: 1;
-            padding: 12px 20px;
-            font-size: 0.95em;
-        }
-
-        .delete-btn {
-            background: #ffb3d9 !important;
-            color: #fff !important;
-        }
-
-        .delete-btn:hover {
-            background: #ff99cc !important;
-        }
-
-        .summary {
-            background: linear-gradient(135deg, #f0e6f7 0%, #ffe8f5 100%);
-            padding: 25px;
-            border-radius: 15px;
-            border: 3px solid #e8d5f2;
-            margin-bottom: 30px;
-        }
-
-        .summary h2 {
-            color: #a8669f;
-            margin-bottom: 15px;
-            font-size: 1.3em;
-        }
-
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-
-        .summary-card {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            border-left: 5px solid #d9a8d4;
-            box-shadow: 0 2px 8px rgba(168, 102, 159, 0.08);
-        }
-
-        .summary-card .name {
-            color: #a8669f;
-            font-weight: bold;
-            margin-bottom: 8px;
-            font-size: 0.95em;
-        }
-
-        .summary-card .stats {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9em;
-        }
-
-        .summary-card .win {
-            color: #28a745;
-        }
-
-        .summary-card .loss {
-            color: #dc3545;
-        }
-
-        .month-nav {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .month-nav button {
-            margin: 0 10px;
-            font-size: 0.95em;
-        }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
-
-            .day-cell {
-                min-height: 100px;
-                padding: 8px;
-            }
-
-            .day-data {
-                font-size: 0.75em;
-                max-height: 60px;
-            }
-
-            .summary-grid {
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 Mahjong Tracker</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f8f9fa; color: #333; }
+    h1 { text-align: center; margin-bottom: 10px; }
+    #subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+    #summary { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .player-sum { text-align: center; min-width: 100px; }
+    .player-sum strong { display: block; font-size: 1.2em; }
+    .net-positive { color: #28a745; }
+    .net-negative { color: #dc3545; }
+    #nav { text-align: center; margin-bottom: 20px; }
+    button { background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 0 5px; }
+    button:hover { background: #0056b3; }
+    #calendar { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .weekdays { display: flex; font-weight: bold; background: #e9ecef; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+    .weekday { flex: 1; text-align: center; color: #495057; }
+    .week { display: flex; margin-bottom: 4px; }
+    .day { flex: 1; height: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px solid #dee2e6; border-radius: 8px; margin: 0 2px; cursor: pointer; font-weight: bold; transition: all 0.2s; background: white; }
+    .day:hover { border-color: #007bff; transform: scale(1.05); }
+    .day.other-month { color: #adb5bd; border-color: #e9ecef; cursor: default; background: #f8f9fa; }
+    .day.other-month:hover { transform: none; border-color: #e9ecef; }
+    .day.editing { border-color: #28a745; background: #e9f7ef !important; }
+    .day input { width: 60px; height: 32px; border: 1px solid #ced4da; border-radius: 6px; text-align: center; font-size: 16px; font-weight: bold; }
+    .day.net-positive { background: #d4edda; border-color: #28a745; }
+    .day.net-negative { background: #f8d7da; border-color: #dc3545; }
+    #status { text-align: center; margin-top: 15px; font-style: italic; color: #666; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🀄 2026 Mahjong Tracker 🀄</h1>
-            <p>Track your wins and losses</p>
-        </div>
+  <h1>2026 Mahjong Tracker</h1>
+  <p id="subtitle">Track net points per player (+ = wins, – = losses)</p>
+  
+  <div id="summary"></div>
+  
+  <div id="nav">
+    <button onclick="prevMonth()">← Prev Month</button>
+    <span id="month-year" style="font-size: 18px; font-weight: bold; margin: 0 25px;"></span>
+    <button onclick="nextMonth()">Next Month →</button>
+  </div>
+  
+  <div id="calendar"></div>
+  <p id="status">Click a day → enter net for each player (+ positive / – negative) → Tab/Enter/click away to save. Data saved in browser.</p>
 
-        <div class="summary" id="summary"></div>
+  <script>
+    const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
+    const POINTS_PER_UNIT = 10; // $10 per point/unit – change if different
+    let currentYear = 2026;
+    let currentMonth = 0; // 0 = January
+    let data = {}; // { '2026-1-15': {Gina: 3, Anders: -2, ...} }
 
-        <div class="month-nav">
-            <button onclick="previousMonth()">← Previous Month</button>
-            <span id="monthDisplay" style="font-size: 1.2em; color: #a8669f; font-weight: bold; margin: 0 20px;"></span>
-            <button onclick="nextMonth()">Next Month →</button>
-        </div>
+    function loadData() {
+      const saved = localStorage.getItem('mj2026-net');
+      data = saved ? JSON.parse(saved) : {};
+    }
 
-        <div class="calendar" id="calendar"></div>
-    </div>
+    function saveData() {
+      localStorage.setItem('mj2026-net', JSON.stringify(data));
+    }
 
-    <div id="dayModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalDate"></h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="player-inputs" id="playerInputs"></div>
-            <div class="modal-buttons">
-                <button onclick="saveDay()" style="background: #d9a8d4; color: white;">💾 Save</button>
-                <button class="delete-btn" onclick="deleteDay()">🗑️ Delete</button>
-            </div>
-        </div>
-    </div>
+    function daysInMonth(y, m) {
+      return new Date(y, m + 1, 0).getDate();
+    }
 
-    <script>
-        const PLAYERS = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
-        let currentDate = new Date(2026, 0, 1);
-        let data = JSON.parse(localStorage.getItem('mahjongData2026')) || {};
+    function firstDayOfMonth(y, m) {
+      return new Date(y, m, 1).getDay();
+    }
 
-        function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const daysInMonth = lastDay.getDate();
-            const startingDayOfWeek = firstDay.getDay();
-
-            document.getElementById('monthDisplay').textContent = 
-                currentDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-
-            const calendar = document.getElementById('calendar');
-            calendar.innerHTML = '';
-
-            const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            dayHeaders.forEach(day => {
-                const header = document.createElement('div');
-                header.className = 'day-header';
-                header.textContent = day;
-                calendar.appendChild(header);
-            });
-
-            // Previous month days
-            const prevMonthLastDay = new Date(year, month, 0).getDate();
-            for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-                const cell = createDayCell(prevMonthLastDay - i, 'other-month', null);
-                calendar.appendChild(cell);
-            }
-
-            // Current month days
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, month, day);
-                const cell = createDayCell(day, '', date);
-                calendar.appendChild(cell);
-            }
-
-            // Next month days
-            const cellsNeeded = 42 - (startingDayOfWeek + daysInMonth);
-            for (let day = 1; day <= cellsNeeded; day++) {
-                const cell = createDayCell(day, 'other-month', null);
-                calendar.appendChild(cell);
-            }
-
-            updateSummary();
+    function calcSummary(y, m) {
+      const nets = {};
+      players.forEach(p => nets[p] = 0);
+      for (let d = 1; d <= daysInMonth(y, m); d++) {
+        const key = `${y}-${m + 1}-${d}`;
+        if (data[key]) {
+          players.forEach(p => {
+            nets[p] += (data[key][p] || 0) * POINTS_PER_UNIT;
+          });
         }
+      }
+      return nets;
+    }
 
-        function createDayCell(day, className, date) {
-            const cell = document.createElement('div');
-            cell.className = 'day-cell ' + className;
+    function updateSummary() {
+      const nets = calcSummary(currentYear, currentMonth);
+      const sumDiv = document.getElementById('summary');
+      sumDiv.innerHTML = players.map(p => {
+        const net = nets[p];
+        const sign = net > 0 ? '+' : '';
+        const cls = net > 0 ? 'net-positive' : net < 0 ? 'net-negative' : '';
+        return `<div class="player-sum ${cls}"><strong>${p}</strong><br>${sign}${net}$</div>`;
+      }).join('');
+    }
 
-            const dayNumber = document.createElement('div');
-            dayNumber.className = 'day-number';
-            dayNumber.textContent = day;
-            cell.appendChild(dayNumber);
+    function updateCalendar() {
+      document.getElementById('month-year').textContent = 
+        new Date(currentYear, currentMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      const cal = document.getElementById('calendar');
+      const daysInCur = daysInMonth(currentYear, currentMonth);
+      const firstDOW = firstDayOfMonth(currentYear, currentMonth);
+      
+      let html = '<div class="weekdays">' + 
+        ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div class="weekday">${d}</div>`).join('') + 
+        '</div>';
 
-            if (date) {
-                const dateKey = formatDateKey(date);
-                const dayData = data[dateKey];
-
-                const dataDiv = document.createElement('div');
-                dataDiv.className = 'day-data';
-
-                if (dayData && Object.keys(dayData).length > 0) {
-                    Object.entries(dayData).forEach(([player, info]) => {
-                        if (info.winAmount || info.lossAmount) {
-                            const item = document.createElement('div');
-                            item.className = 'day-data-item';
-                            const text = `${player}: ${info.winAmount ? '+$' + info.winAmount : ''} ${info.lossAmount ? '-$' + info.lossAmount : ''}`.trim();
-                            item.textContent = text;
-                            dataDiv.appendChild(item);
-                        }
-                    });
-                }
-
-                cell.appendChild(dataDiv);
-                cell.onclick = () => openModal(date);
-            }
-
-            return cell;
+      let week = [];
+      for (let i = 0; i < firstDOW; i++) {
+        const prevD = daysInMonth(currentYear, currentMonth - 1) - firstDOW + i + 1;
+        week.push(`<div class="day other-month">${prevD}</div>`);
+      }
+      
+      for (let d = 1; d <= daysInCur; d++) {
+        week.push(createDay(d));
+        if (week.length === 7) {
+          html += `<div class="week">${week.join('')}</div>`;
+          week = [];
         }
+      }
+      
+      while (week.length < 7) {
+        week.push(`<div class="day other-month"></div>`);
+      }
+      if (week.length) html += `<div class="week">${week.join('')}</div>`;
+      
+      cal.innerHTML = html;
+      updateSummary();
+    }
 
-        function openModal(date) {
-            const dateKey = formatDateKey(date);
-            const modalDate = document.getElementById('modalDate');
-            modalDate.textContent = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+    function createDay(d) {
+      const key = `${currentYear}-${currentMonth + 1}-${d}`;
+      const dayData = data[key] || {};
+      const totalNet = players.reduce((sum, p) => sum + (dayData[p] || 0), 0);
+      const dayCls = totalNet > 0 ? 'net-positive' : totalNet < 0 ? 'net-negative' : '';
+      return `<div class="day ${dayCls}" onclick="editDay('${key}', this)">${d}</div>`;
+    }
 
-            const playerInputs = document.getElementById('playerInputs');
-            playerInputs.innerHTML = '';
+    function editDay(key, elem) {
+      if (elem.classList.contains('editing')) return;
+      elem.classList.add('editing');
+      
+      const dayData = data[key] || {};
+      let html = '';
+      players.forEach(p => {
+        const val = dayData[p] ?? '';
+        html += `
+          <div style="font-size:11px; color:#555; margin-bottom:3px;">${p}</div>
+          <input type="number" value="${val}" 
+                 onblur="saveNet('${key}', '${p}', this)" 
+                 onkeypress="if(event.key==='Enter') this.blur()">
+        `;
+      });
+      elem.innerHTML = html;
+      elem.querySelector('input').focus();
+    }
 
-            const dayData = data[dateKey] || {};
+    function saveNet(key, player, input) {
+      const val = parseInt(input.value) || 0;
+      if (!data[key]) data[key] = {};
+      if (val === 0) {
+        delete data[key][player]; // clean up zeros
+      } else {
+        data[key][player] = val;
+      }
+      if (Object.keys(data[key]).length === 0) delete data[key];
+      saveData();
+      updateCalendar();
+    }
 
-            PLAYERS.forEach(player => {
-                const group = document.createElement('div');
-                group.className = 'player-input-group';
+    function prevMonth() {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      updateCalendar();
+    }
 
-                const label = document.createElement('label');
-                label.textContent = player;
-                group.appendChild(label);
+    function nextMonth() {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      updateCalendar();
+    }
 
-                const winInput = document.createElement('input');
-                winInput.type = 'number';
-                winInput.placeholder = 'Amount Won';
-                winInput.value = dayData[player]?.winAmount || '';
-                winInput.id = `win-${player}`;
-                group.appendChild(winInput);
-
-                const lossInput = document.createElement('input');
-                lossInput.type = 'number';
-                lossInput.placeholder = 'Amount Lost';
-                lossInput.value = dayData[player]?.lossAmount || '';
-                lossInput.id = `loss-${player}`;
-                group.appendChild(lossInput);
-
-                playerInputs.appendChild(group);
-            });
-
-            document.getElementById('dayModal').style.display = 'block';
-            window.currentDateKey = dateKey;
-        }
-
-        function closeModal() {
-            document.getElementById('dayModal').style.display = 'none';
-        }
-
-        function saveDay() {
-            const dateKey = window.currentDateKey;
-            if (!data[dateKey]) data[dateKey] = {};
-
-            PLAYERS.forEach(player => {
-                const win = document.getElementById(`win-${player}`).value;
-                const loss = document.getElementById(`loss-${player}`).value;
-
-                data[dateKey][player] = {
-                    winAmount: win ? parseInt(win) : 0,
-                    lossAmount: loss ? parseInt(loss) : 0
-                };
-            });
-
-            localStorage.setItem('mahjongData2026', JSON.stringify(data));
-            renderCalendar();
-            closeModal();
-        }
-
-        function deleteDay() {
-            if (confirm('Confirm delete this day\'s data?')) {
-                delete data[window.currentDateKey];
-                localStorage.setItem('mahjongData2026', JSON.stringify(data));
-                renderCalendar();
-                closeModal();
-            }
-        }
-
-        function updateSummary() {
-            const summary = { };
-            PLAYERS.forEach(player => {
-                summary[player] = { totalWin: 0, totalLoss: 0 };
-            });
-
-            Object.values(data).forEach(dayData => {
-                Object.entries(dayData).forEach(([player, info]) => {
-                    if (summary[player]) {
-                        summary[player].totalWin += info.winAmount || 0;
-                        summary[player].totalLoss += info.lossAmount || 0;
-                    }
-                });
-            });
-
-            const summaryDiv = document.getElementById('summary');
-            summaryDiv.innerHTML = '<h2>📊 Overall Summary</h2><div class="summary-grid" id="summaryGrid"></div>';
-            const grid = document.getElementById('summaryGrid');
-
-            PLAYERS.forEach(player => {
-                const card = document.createElement('div');
-                card.className = 'summary-card';
-                const net = summary[player].totalWin - summary[player].totalLoss;
-                card.innerHTML = `
-                    <div class="name">${player}</div>
-                    <div class="stats">
-                        <span class="win">Won: +$${summary[player].totalWin}</span>
-                    </div>
-                    <div class="stats">
-                        <span class="loss">Lost: -$${summary[player].totalLoss}</span>
-                    </div>
-                    <div class="stats" style="margin-top: 8px; font-weight: bold; color: ${net >= 0 ? '#28a745' : '#dc3545'};">
-                        Net: ${net >= 0 ? '+$' : '-$'}${Math.abs(net)}
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-        }
-
-        function formatDateKey(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-
-        function previousMonth() {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-            renderCalendar();
-        }
-
-        function nextMonth() {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-            renderCalendar();
-        }
-
-        window.onclick = (event) => {
-            const modal = document.getElementById('dayModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        };
-
-        renderCalendar();
-    </script>
+    // Init
+    loadData();
+    updateCalendar();
+  </script>
 </body>
 </html>
