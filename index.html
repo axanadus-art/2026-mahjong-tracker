@@ -68,24 +68,11 @@
     </div>
   </div>
 
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js';
-    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, serverTimestamp, orderBy, query, enableIndexedDbPersistence } from 'https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js';
+  <script>
+    const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
+    const BASKET_NAME = 'records';
+    const API_BASE = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyD3QrCLU4Y8J1QW3qZzmxj9qfxyaF5jFxI",
-      authDomain: "mahjong-2026.firebaseapp.com",
-      projectId: "mahjong-2026",
-      storageBucket: "mahjong-2026.firebasestorage.app",
-      messagingSenderId: "437677607060",
-      appId: "1:437677607060:web:ec4cbe0e1dbc3faf5d8c81"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    enableIndexedDbPersistence(db).catch(() => {});
-
-    const recordsRef = collection(db, 'mahjong_records');
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
@@ -99,25 +86,57 @@
     statusEl.textContent = '💾 Local backup loaded';
     statusEl.className = 'status offline';
 
-    const q = query(recordsRef, orderBy('timestamp', 'desc'));
-    onSnapshot(q, (snapshot) => {
-      const cloudRecords = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-      const merged = [...cloudRecords];
-      getLocal().forEach(localR => {
-        if (!merged.some(r => r.date === localR.date && r.player === localR.player && r.win === localR.win && r.lose === localR.lose)) {
-          merged.push(localR);
+    // Load from cloud
+    async function loadFromCloud() {
+      try {
+        const res = await fetch(API_BASE);
+        if (res.ok) {
+          const data = await res.json();
+          const cloudRecords = data.records || [];
+          // Merge: cloud first, then add any local-only records
+          const merged = [...cloudRecords];
+          getLocal().forEach(localR => {
+            if (!merged.some(r => r.date === localR.date && r.player === localR.player && r.net === localR.net)) {
+              merged.push(localR);
+            }
+          });
+          allRecords = merged;
+          saveLocal(merged);
+          updateTables(merged);
+          statusEl.textContent = `🟢 Cloud synced (${merged.length} records)`;
+          statusEl.className = 'status connected';
+          // If we added local-only records, push them back to cloud
+          if (merged.length > cloudRecords.length) {
+            await saveToCloud();
+          }
+        } else if (res.status === 404) {
+          // Basket doesn't exist yet → create it
+          await saveToCloud();
+          loadFromCloud();
         }
-      });
-      allRecords = merged;
-      saveLocal(merged);
-      updateTables(merged);
-      statusEl.innerHTML = `🟢 Synced <strong>(${cloudRecords.length} cloud + ${getLocal().length - cloudRecords.length} local)</strong>`;
-      statusEl.className = 'status connected';
-    }, () => {
-      statusEl.textContent = '🔄 Offline - Local backup active';
-      statusEl.className = 'status offline';
-      updateTables(getLocal());
-    });
+      } catch (e) {
+        console.log('Cloud load failed, using local');
+        statusEl.textContent = '🔄 Offline - Local active';
+        statusEl.className = 'status offline';
+      }
+    }
+
+    // Save to cloud
+    async function saveToCloud() {
+      try {
+        await fetch(API_BASE, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: allRecords })
+        });
+      } catch (e) {
+        console.log('Cloud save failed');
+      }
+    }
+
+    // Initial load + poll every 5 seconds for real-time feel
+    loadFromCloud();
+    setInterval(loadFromCloud, 5000);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -133,8 +152,8 @@
 
     async function addRecord() {
       const date = document.getElementById('dateInput').value;
-      const playerText = document.getElementById('playerSelect').value;
-      const player = playerText.split(' ')[0].trim();
+      const playerText = document.getElementById('playerSelect').value.trim();
+      const player = playerText.split(' ')[0];
       const amountStr = document.getElementById('amountInput').value.trim();
 
       if (!date || !amountStr) return alert('請填日期和金額');
@@ -145,59 +164,41 @@
       const lose = amount < 0 ? Math.abs(amount) : 0;
       const net = win - lose;
 
-      const record = {
-        date,
-        player,
-        win,
-        lose,
-        net,
-        playerDisplay: playerText,
-        timestamp: new Date().toISOString()
-      };
+      const record = { date, player, win, lose, net, playerDisplay: playerText };
 
-      // 1. Save to local first (instant feedback)
-      const localRecords = getLocal();
-      localRecords.unshift(record);
-      saveLocal(localRecords);
-      updateTables(localRecords);
+      // Instant local update
+      allRecords.unshift(record);
+      saveLocal(allRecords);
+      updateTables(allRecords);
 
-      // 2. Push to cloud
       statusEl.textContent = '🟠 Syncing...';
       statusEl.className = 'status syncing';
-      try {
-        await addDoc(recordsRef, { ...record, timestamp: serverTimestamp() });
-      } catch (e) {
-        console.log('Cloud failed, local safe:', e);
-      }
 
-      // Clear input
+      // Push to cloud
+      await saveToCloud();
+
       document.getElementById('amountInput').value = '';
     }
 
-    window.deleteRecord = async (recordId) => {
-      if (!confirm('刪除？所有人同步')) return;
+    window.deleteRecord = async function(index) {
+      if (!confirm('刪除？所有人會看到')) return;
 
-      const localRecords = getLocal().filter(r => r.id !== recordId);
-      saveLocal(localRecords);
-
-      try {
-        await deleteDoc(doc(db, 'mahjong_records', recordId));
-      } catch (e) {
-        console.log('Cloud delete failed, local updated');
-      }
-      updateTables(localRecords);
+      allRecords.splice(index, 1);
+      saveLocal(allRecords);
+      updateTables(allRecords);
+      await saveToCloud();
     };
 
     function updateTables(records) {
       const tbody1 = document.querySelector('#recordsTable tbody');
-      tbody1.innerHTML = records.slice(0, 50).map(r => `
+      tbody1.innerHTML = records.slice(0, 50).map((r, i) => `
         <tr>
           <td>${r.date}</td>
           <td>${r.playerDisplay}</td>
           <td>$${r.win?.toLocaleString()}</td>
           <td>$${r.lose?.toLocaleString()}</td>
           <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-          <td><button class="delete-btn" onclick="deleteRecord('${r.id || r.tempId}')">${r.id ? '🗑️' : '💾'}</button></td>
+          <td><button class="delete-btn" onclick="deleteRecord(${i})">🗑️</button></td>
         </tr>
       `).join('');
 
