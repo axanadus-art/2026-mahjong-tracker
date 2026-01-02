@@ -86,7 +86,10 @@
         const res = await fetch(API_BASE);
         if (res.ok) {
           const data = await res.json();
-          allRecords = data.records || [];
+          allRecords = (data.records || []).map(r => ({
+            ...r,
+            id: r.id || Date.now() + Math.random() // Ensure every record has unique id
+          }));
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
@@ -146,32 +149,35 @@
       const lose = amount < 0 ? Math.abs(amount) : 0;
       const net = win - lose;
 
-      const record = { date, player, win, lose, net, playerDisplay: playerText };
+      const newRecord = {
+        id: Date.now(), // Unique ID
+        date,
+        player,
+        win,
+        lose,
+        net,
+        playerDisplay: playerText
+      };
 
-      allRecords.unshift(record);
-      updateTables(allRecords);
-
-      statusEl.textContent = '🟠 Syncing...';
+      statusEl.textContent = '🟠 Adding...';
       statusEl.className = 'status syncing';
 
+      allRecords.unshift(newRecord);
       await saveToCloud();
+      await loadFromCloud(); // Refresh to confirm
 
       document.getElementById('amountInput').value = '';
-
-      setTimeout(loadFromCloud, 500);
     }
 
-    // Fixed delete: uses unique key instead of index
-    window.deleteRecord = async function(date, player, net) {
+    window.deleteRecord = async function(id) {
       if (!confirm('刪除？所有人會看到')) return;
 
-      allRecords = allRecords.filter(r => !(r.date === date && r.player === player && r.net === net));
+      statusEl.textContent = '🟠 Deleting...';
+      statusEl.className = 'status syncing';
 
-      updateTables(allRecords);
-
+      allRecords = allRecords.filter(r => r.id !== id);
       await saveToCloud();
-
-      setTimeout(loadFromCloud, 500);
+      await loadFromCloud(); // Refresh to confirm
     };
 
     function updateTables(records) {
@@ -183,7 +189,7 @@
           <td>$${r.win?.toLocaleString()}</td>
           <td>$${r.lose?.toLocaleString()}</td>
           <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-          <td><button class="delete-btn" onclick="deleteRecord('${r.date}', '${r.player}', ${r.net})">🗑️</button></td>
+          <td><button class="delete-btn" onclick="deleteRecord(${r.id})">🗑️</button></td>
         </tr>
       `).join('');
 
