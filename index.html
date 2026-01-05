@@ -16,7 +16,7 @@
     button:hover:not(:disabled) { transform: scale(1.05); }
     .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: linear_gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 20px; text-align: left; font-weight: 700; }
+    th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 20px; text-align: left; font-weight: 700; }
     td { padding: 18px 20px; border-bottom: 1px solid #eee; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
@@ -101,9 +101,9 @@
         if (res.ok) {
           const data = await res.json();
           allRecords = data.records || [];
-          // Filter out any old records that don't have 'id' (from previous versions)
+          // Remove any leftover old records (no 'id')
           allRecords = allRecords.filter(r => r.id !== undefined);
-          // Assign id if missing (shouldn't happen now)
+          // Assign id if somehow missing
           allRecords.forEach((r, i) => {
             if (r.id === undefined) r.id = allRecords.length - i;
           });
@@ -212,7 +212,7 @@
 
       allRecords.unshift(newRecord);
 
-      // Show the full JSON in the debug box
+      // Show the full JSON
       const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
       document.getElementById('debugJson').textContent = jsonToSave;
 
