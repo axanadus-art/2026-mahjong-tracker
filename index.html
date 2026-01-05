@@ -94,7 +94,6 @@
         } else if (res.status === 404) {
           allRecords = [];
           updateTables(allRecords);
-          await saveToCloud();
           statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
         }
@@ -106,7 +105,7 @@
       }
     }
 
-    async function saveToCloud() {
+    async function saveFullBasket() {
       try {
         await fetch(API_BASE, {
           method: 'PUT',
@@ -115,7 +114,7 @@
         });
         return true;
       } catch (e) {
-        console.log('Save failed', e);
+        console.log('Full save failed', e);
         return false;
       }
     }
@@ -138,7 +137,7 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
       allRecords = allRecords.filter(r => r.id !== id);
-      await saveToCloud();
+      await saveFullBasket();
       await loadFromCloud();
       startPolling();
       isBusy = false;
@@ -176,9 +175,6 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Load current records first
-      await loadFromCloud();
-
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
       const newRecord = {
         id: nextId,
@@ -190,8 +186,24 @@
         playerDisplay: playerText
       };
 
-      allRecords.unshift(newRecord);
-      await saveToCloud();
+      // POST wrapped in "records" array to append
+      try {
+        const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: [newRecord] })
+        });
+        if (!res.ok) throw new Error('POST failed');
+      } catch (e) {
+        alert('Add failed — please try again');
+        console.error(e);
+        startPolling();
+        isBusy = false;
+        disableButtons(false);
+        return;
+      }
+
+      // Immediately fetch the full updated data
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
