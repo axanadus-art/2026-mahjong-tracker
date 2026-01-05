@@ -26,6 +26,13 @@
     .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
     .offline { background: #FFF3E0; color: #EF6C00; }
     .syncing { background: #E3F2FD; color: #1976D2; }
+
+    /* Modal for full JSON */
+    #jsonModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 15px; max-width: 90%; max-height: 90%; overflow: auto; }
+    .modal-content pre { white-space: pre-wrap; word-wrap: break-word; }
+    .close-modal { background: #FF6B6B; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; margin-top: 10px; }
+
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
       th, td { padding: 12px 8px; font-size: 14px; }
@@ -64,6 +71,16 @@
       </table>
     </div>
   </div>
+
+  <!-- Modal to show full JSON -->
+  <div id="jsonModal">
+    <div class="modal-content">
+      <h2>Updated JSON Being Saved to Pantry</h2>
+      <pre id="jsonContent"></pre>
+      <button class="close-modal" onclick="document.getElementById('jsonModal').style.display='none'">Close</button>
+    </div>
+  </div>
+
   <script>
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
@@ -122,7 +139,7 @@
 
     function startPolling() {
       if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(loadFromCloud, 20000); // 20 seconds
+      pollInterval = setInterval(loadFromCloud, 20000);
     }
 
     loadFromCloud();
@@ -177,7 +194,6 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Load current
       await loadFromCloud();
 
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
@@ -193,9 +209,10 @@
 
       allRecords.unshift(newRecord);
 
-      // Show what is being pasted into Pantry
+      // Show the full updated JSON in modal
       const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
-      alert(`This is the full JSON being pasted into Pantry AFTER update:\n\n${jsonToSave}`);
+      document.getElementById('jsonContent').textContent = jsonToSave;
+      document.getElementById('jsonModal').style.display = 'flex';
 
       await saveToCloud();
       await loadFromCloud();
