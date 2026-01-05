@@ -192,14 +192,7 @@
 
       allRecords.unshift(newRecord);
 
-      // Step 1: Clear the basket (PUT empty array)
-      await fetch(API_BASE, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ records: [] })
-      });
-
-      // Step 2: Immediately PUT the full updated array
+      // Single PUT — overwrites with full list
       await saveToCloud();
 
       // Confirm with fresh load
