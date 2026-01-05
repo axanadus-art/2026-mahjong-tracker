@@ -39,7 +39,7 @@
   <div class="container">
     <h1>🎰 2026 Mahjong Tracker 🎰</h1>
     <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete</p>
-    <div id="status" class="status offline">🔄 Cloud sync is paused (debug mode)</div>
+    <div id="status" class="status offline">🔄 Connecting to cloud...</div>
     <form id="recordForm" class="input-card">
       <input type="date" id="dateInput" value="2026-01-05">
       <select id="playerSelect">
@@ -50,14 +50,14 @@
       <button type="submit" id="addButton">Add ✨</button>
     </form>
     <div class="stats-card">
-      <h3>📊 Records (Local Preview Only)</h3>
+      <h3>📊 Records</h3>
       <table id="recordsTable">
         <thead><tr><th>Date</th><th>Player</th><th>Win</th><th>Lose</th><th>Net</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
     <div class="stats-card">
-      <h3>💰 Totals (Local Preview Only)</h3>
+      <h3>💰 Totals</h3>
       <table id="totalsTable">
         <thead><tr><th>Player</th><th>Win</th><th>Lose</th><th>Net</th></tr></thead>
         <tbody></tbody>
@@ -65,25 +65,95 @@
     </div>
   </div>
   <script>
+    const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
+    const BASKET_NAME = 'records';
+    const GET_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
+    const POST_URL = GET_URL; // POST to append
+    const PUT_URL = GET_URL; // PUT to replace full basket on delete
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
+    const addButton = document.getElementById('addButton');
     const recordsTbody = document.querySelector('#recordsTable tbody');
-    let allRecords = []; // Local only — no cloud sync
+    let allRecords = [];
+    let isBusy = false;
+    let pollInterval;
 
     updateTables(allRecords);
 
-    recordsTbody.addEventListener('click', (e) => {
-      if (!e.target.classList.contains('delete-btn')) return;
+    async function loadFromCloud(showData = false) {
+      if (isBusy) return;
+      try {
+        const res = await fetch(GET_URL);
+        if (res.ok) {
+          const data = await res.json();
+          allRecords = data.records || [];
+          allRecords.forEach((r, i) => r.uniqueId = r.uniqueId || Date.now().toString(36) + Math.random().toString(36).substr(2));
+          allRecords.sort((a, b) => (b.uniqueId > a.uniqueId) ? 1 : -1);
+          updateTables(allRecords);
+          statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
+          statusEl.className = 'status connected';
+
+          if (showData) {
+            const cloudJson = JSON.stringify({ records: allRecords }, null, 2);
+            alert(`Synced successfully!\n\nData received back from cloud:\n\n${cloudJson}`);
+          }
+        } else if (res.status === 404) {
+          allRecords = [];
+          updateTables(allRecords);
+          statusEl.textContent = '🟢 Online — Ready';
+          statusEl.className = 'status connected';
+        }
+      } catch (e) {
+        allRecords = [];
+        updateTables(allRecords);
+        statusEl.textContent = '🔴 Offline — Try again later';
+        statusEl.className = 'status offline';
+      }
+    }
+
+    async function saveFullBasket() {
+      try {
+        await fetch(PUT_URL, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: allRecords })
+        });
+        return true;
+      } catch (e) {
+        console.log('Full save failed', e);
+        return false;
+      }
+    }
+
+    function startPolling() {
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(() => loadFromCloud(false), 3000);
+    }
+
+    loadFromCloud(false);
+    startPolling();
+
+    recordsTbody.addEventListener('click', async (e) => {
+      if (isBusy || !e.target.classList.contains('delete-btn')) return;
       const uniqueId = e.target.dataset.id;
       if (!confirm('Delete?')) return;
+      isBusy = true;
+      disableButtons(true);
+      statusEl.textContent = '🟠 Deleting...';
+      statusEl.className = 'status syncing';
+      clearInterval(pollInterval);
       allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
-      updateTables(allRecords);
+      const success = await saveFullBasket();
+      await loadFromCloud(true); // Show data received back
+      startPolling();
+      isBusy = false;
+      disableButtons(false);
     });
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      addRecord();
+      await addRecord();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -93,7 +163,8 @@
       }
     });
 
-    function addRecord() {
+    async function addRecord() {
+      if (isBusy) return;
       const date = document.getElementById('dateInput').value;
       const playerText = document.getElementById('playerSelect').value.trim();
       const player = playerText.split(' ')[0];
@@ -105,6 +176,12 @@
       const lose = amount < 0 ? Math.abs(amount) : 0;
       const net = win - lose;
 
+      isBusy = true;
+      disableButtons(true);
+      statusEl.textContent = '🟠 Adding...';
+      statusEl.className = 'status syncing';
+      clearInterval(pollInterval);
+
       const newRecord = {
         uniqueId: Date.now().toString(36) + Math.random().toString(36).substr(2),
         date,
@@ -115,15 +192,32 @@
         playerDisplay: playerText
       };
 
-      // Show exactly what would be sent to cloud
-      const jsonToSend = JSON.stringify(newRecord, null, 2);
-      alert(`Cloud sync is paused.\n\nThis is the JSON package that would be sent:\n\n${jsonToSend}`);
+      try {
+        const res = await fetch(POST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRecord)
+        });
+        if (!res.ok) throw new Error('Add failed');
+      } catch (e) {
+        alert('Add failed — please try again');
+        console.error(e);
+        startPolling();
+        isBusy = false;
+        disableButtons(false);
+        return;
+      }
 
-      // Still add to local preview so you can see it
-      allRecords.unshift(newRecord);
-      updateTables(allRecords);
-
+      await loadFromCloud(true); // Show the full data received back from cloud
       document.getElementById('amountInput').value = '';
+      startPolling();
+      isBusy = false;
+      disableButtons(false);
+    }
+
+    function disableButtons(disabled) {
+      addButton.disabled = disabled;
+      document.querySelectorAll('.delete-btn').forEach(btn => btn.disabled = disabled);
     }
 
     function updateTables(records) {
