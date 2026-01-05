@@ -67,7 +67,8 @@
   <script>
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
-    const API_BASE = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
+    const GET_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
+    const POST_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
@@ -82,7 +83,7 @@
     async function loadFromCloud() {
       if (isBusy) return;
       try {
-        const res = await fetch(API_BASE);
+        const res = await fetch(GET_URL);
         if (res.ok) {
           const data = await res.json();
           allRecords = data.records || [];
@@ -94,7 +95,6 @@
         } else if (res.status === 404) {
           allRecords = [];
           updateTables(allRecords);
-          await saveToCloud();
           statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
         }
@@ -108,7 +108,7 @@
 
     async function saveToCloud() {
       try {
-        await fetch(API_BASE, {
+        await fetch(GET_URL, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: allRecords })
@@ -176,10 +176,7 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Create new record with next ID
-      const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
       const newRecord = {
-        id: nextId,
         date,
         player,
         win,
@@ -188,11 +185,24 @@
         playerDisplay: playerText
       };
 
-      // Add to array and save to cloud
-      allRecords.unshift(newRecord);
-      const success = await saveToCloud();
+      // POST to append the new record
+      try {
+        const res = await fetch(POST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRecord)
+        });
+        if (!res.ok) throw new Error('POST failed');
+      } catch (e) {
+        alert('Add failed — please try again');
+        console.error(e);
+        startPolling();
+        isBusy = false;
+        disableButtons(false);
+        return;
+      }
 
-      // Always load fresh data from cloud — no local trust
+      // Always refresh from cloud after POST
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
