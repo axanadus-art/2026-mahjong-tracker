@@ -26,6 +26,13 @@
     .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
     .offline { background: #FFF3E0; color: #EF6C00; }
     .syncing { background: #E3F2FD; color: #1976D2; }
+
+    /* Debug JSON box */
+    #debugBox { background: #f0f0f0; border: 2px solid #FF8AB3; border-radius: 15px; padding: 20px; margin: 20px 0; display: none; }
+    #debugJson { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; max-height: 400px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
+    #copyBtn { background: #FF8AB3; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; margin-top: 10px; }
+    #copyBtn:hover { background: #ff6b9d; }
+
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
       th, td { padding: 12px 8px; font-size: 14px; }
@@ -63,7 +70,15 @@
         <tbody></tbody>
       </table>
     </div>
+
+    <!-- Debug box to show full JSON -->
+    <div id="debugBox">
+      <h3>Full JSON Being Saved to Pantry</h3>
+      <pre id="debugJson"></pre>
+      <button id="copyBtn">Copy to Clipboard</button>
+    </div>
   </div>
+
   <script>
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
@@ -94,6 +109,7 @@
         } else if (res.status === 404) {
           allRecords = [];
           updateTables(allRecords);
+          await saveToCloud();
           statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
         }
@@ -105,25 +121,23 @@
       }
     }
 
-    async function clearAndReplace(newRecords) {
-      // Step 1: Completely clear the basket
-      await fetch(API_BASE, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ records: [] })
-      });
-
-      // Step 2: Save the full new list
-      await fetch(API_BASE, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ records: newRecords })
-      });
+    async function saveToCloud() {
+      try {
+        await fetch(API_BASE, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: allRecords })
+        });
+        return true;
+      } catch (e) {
+        console.log('Save failed', e);
+        return false;
+      }
     }
 
     function startPolling() {
       if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(loadFromCloud, 20000); // 20 seconds
+      pollInterval = setInterval(loadFromCloud, 20000);
     }
 
     loadFromCloud();
@@ -140,7 +154,7 @@
       clearInterval(pollInterval);
       await loadFromCloud();
       allRecords = allRecords.filter(r => r.id !== id);
-      await clearAndReplace(allRecords);
+      await saveToCloud();
       await loadFromCloud();
       startPolling();
       isBusy = false;
@@ -193,8 +207,12 @@
 
       allRecords.unshift(newRecord);
 
-      await clearAndReplace(allRecords);
+      // Show the full JSON in the debug box
+      const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
+      document.getElementById('debugJson').textContent = jsonToSave;
+      document.getElementById('debugBox').style.display = 'block';
 
+      await saveToCloud();
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
@@ -202,6 +220,14 @@
       isBusy = false;
       disableButtons(false);
     }
+
+    // Copy button
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      const text = document.getElementById('debugJson').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        alert('JSON copied to clipboard!');
+      });
+    });
 
     function disableButtons(disabled) {
       addButton.disabled = disabled;
