@@ -69,6 +69,7 @@
     const BASKET_NAME = 'records';
     const GET_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
     const POST_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
+    const PUT_URL = GET_URL; // For full replace on delete
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
@@ -87,8 +88,13 @@
         if (res.ok) {
           const data = await res.json();
           allRecords = data.records || [];
-          // Simple sequential IDs (highest = newest)
-          allRecords.forEach((r, i) => r.id = allRecords.length - i);
+          // Ensure every record has a unique ID
+          allRecords = allRecords.map(r => ({
+            ...r,
+            uniqueId: r.uniqueId || Date.now().toString(36) + Math.random().toString(36).substr(2)
+          }));
+          // Sort newest first
+          allRecords.sort((a, b) => (b.uniqueId > a.uniqueId) ? 1 : -1);
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
@@ -106,16 +112,16 @@
       }
     }
 
-    async function saveToCloud() {
+    async function saveFullBasket() {
       try {
-        await fetch(GET_URL, {
+        await fetch(PUT_URL, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: allRecords })
         });
         return true;
       } catch (e) {
-        console.log('Save failed', e);
+        console.log('Full save failed', e);
         return false;
       }
     }
@@ -130,15 +136,15 @@
 
     recordsTbody.addEventListener('click', async (e) => {
       if (isBusy || !e.target.classList.contains('delete-btn')) return;
-      const id = parseInt(e.target.dataset.id);
+      const uniqueId = e.target.dataset.id;
       if (!confirm('刪除？所有人會看到')) return;
       isBusy = true;
       disableButtons(true);
       statusEl.textContent = '🟠 Deleting...';
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
-      allRecords = allRecords.filter(r => r.id !== id);
-      const success = await saveToCloud();
+      allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
+      await saveFullBasket();
       await loadFromCloud();
       startPolling();
       isBusy = false;
@@ -177,6 +183,7 @@
       clearInterval(pollInterval);
 
       const newRecord = {
+        uniqueId: Date.now().toString(36) + Math.random().toString(36).substr(2),
         date,
         player,
         win,
@@ -185,7 +192,6 @@
         playerDisplay: playerText
       };
 
-      // POST to append the new record
       try {
         const res = await fetch(POST_URL, {
           method: 'POST',
@@ -202,9 +208,7 @@
         return;
       }
 
-      // Always refresh from cloud after POST
-      await loadFromCloud();
-
+      await loadFromCloud(); // Only show after successful POST and fresh load
       document.getElementById('amountInput').value = '';
       startPolling();
       isBusy = false;
@@ -221,19 +225,19 @@
         <tr>
           <td>${r.date}</td>
           <td>${r.playerDisplay}</td>
-          <td>$${r.win?.toLocaleString()}</td>
-          <td>$${r.lose?.toLocaleString()}</td>
+          <td>$${Number(r.win).toLocaleString()}</td>
+          <td>$${Number(r.lose).toLocaleString()}</td>
           <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-          <td><button class="delete-btn" data-id="${r.id}">🗑️</button></td>
+          <td><button class="delete-btn" data-id="${r.uniqueId}">🗑️</button></td>
         </tr>
       `).join('');
 
       const totals = {};
-      players.forEach(p => totals[p] = {win:0, lose:0});
+      players.forEach(p => totals[p] = {win: 0, lose: 0});
       records.forEach(r => {
-        totals[r.player] = totals[r.player] || {win:0, lose:0};
-        totals[r.player].win += r.win || 0;
-        totals[r.player].lose += r.lose || 0;
+        if (!totals[r.player]) totals[r.player] = {win: 0, lose: 0};
+        totals[r.player].win += Number(r.win || 0);
+        totals[r.player].lose += Number(r.lose || 0);
       });
 
       const tbody2 = document.querySelector('#totalsTable tbody');
@@ -244,7 +248,7 @@
           <td><strong>${p}</strong></td>
           <td>$${t.win.toLocaleString()}</td>
           <td>$${t.lose.toLocaleString()}</td>
-          <td><strong>${net>0?'+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>
+          <td><strong>${net > 0 ? '+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>
         </tr>`;
       }).join('');
     }
