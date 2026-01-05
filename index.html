@@ -27,10 +27,10 @@
     .offline { background: #FFF3E0; color: #EF6C00; }
     .syncing { background: #E3F2FD; color: #1976D2; }
 
-    /* Debug JSON box */
-    #debugBox { background: #f0f0f0; border: 2px solid #FF8AB3; border-radius: 15px; padding: 20px; margin: 20px 0; display: none; }
-    #debugJson { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; max-height: 400px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
-    #copyBtn { background: #FF8AB3; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; margin-top: 10px; }
+    /* Debug JSON box - always visible when needed */
+    #debugBox { background: #f9f9f9; border: 3px solid #FF8AB3; border-radius: 15px; padding: 20px; margin: 30px 0; }
+    #debugJson { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; max-height: 500px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
+    #copyBtn { background: #FF8AB3; color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; margin-top: 15px; font-size: 16px; }
     #copyBtn:hover { background: #ff6b9d; }
 
     @media (max-width: 768px) {
@@ -71,11 +71,11 @@
       </table>
     </div>
 
-    <!-- Debug box to show full JSON -->
+    <!-- Debug box - always visible at bottom -->
     <div id="debugBox">
-      <h3>Full JSON Being Saved to Pantry</h3>
-      <pre id="debugJson"></pre>
-      <button id="copyBtn">Copy to Clipboard</button>
+      <h3>Full JSON Being Saved to Pantry (after add)</h3>
+      <pre id="debugJson">No data yet — add a record to see the JSON</pre>
+      <button id="copyBtn">Copy JSON to Clipboard</button>
     </div>
   </div>
 
@@ -137,7 +137,7 @@
 
     function startPolling() {
       if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(loadFromCloud, 20000);
+      pollInterval = setInterval(loadFromCloud, 20000); // 20 seconds
     }
 
     loadFromCloud();
@@ -210,7 +210,6 @@
       // Show the full JSON in the debug box
       const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
       document.getElementById('debugJson').textContent = jsonToSave;
-      document.getElementById('debugBox').style.display = 'block';
 
       await saveToCloud();
       await loadFromCloud();
@@ -225,7 +224,9 @@
     document.getElementById('copyBtn').addEventListener('click', () => {
       const text = document.getElementById('debugJson').textContent;
       navigator.clipboard.writeText(text).then(() => {
-        alert('JSON copied to clipboard!');
+        alert('Full JSON copied to clipboard!');
+      }).catch(() => {
+        alert('Copy failed — select and copy manually');
       });
     });
 
