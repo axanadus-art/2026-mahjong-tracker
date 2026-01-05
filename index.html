@@ -67,9 +67,7 @@
   <script>
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
-    const GET_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
-    const POST_URL = GET_URL;
-    const PUT_URL = GET_URL;
+    const API_BASE = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
@@ -84,18 +82,19 @@
     async function loadFromCloud() {
       if (isBusy) return;
       try {
-        const res = await fetch(GET_URL);
+        const res = await fetch(API_BASE);
         if (res.ok) {
           const data = await res.json();
           allRecords = data.records || [];
-          allRecords.forEach((r, i) => r.uniqueId = r.uniqueId || Date.now().toString(36) + Math.random().toString(36).substr(2));
-          allRecords.sort((a, b) => (b.uniqueId > a.uniqueId) ? 1 : -1);
+          allRecords.forEach((r, i) => r.id = r.id || (allRecords.length - i));
+          allRecords.sort((a, b) => b.id - a.id);
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
         } else if (res.status === 404) {
           allRecords = [];
           updateTables(allRecords);
+          await saveToCloud();
           statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
         }
@@ -107,16 +106,16 @@
       }
     }
 
-    async function saveFullBasket() {
+    async function saveToCloud() {
       try {
-        await fetch(PUT_URL, {
+        await fetch(API_BASE, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: allRecords })
         });
         return true;
       } catch (e) {
-        console.log('Full save failed', e);
+        console.log('Save failed', e);
         return false;
       }
     }
@@ -131,15 +130,15 @@
 
     recordsTbody.addEventListener('click', async (e) => {
       if (isBusy || !e.target.classList.contains('delete-btn')) return;
-      const uniqueId = e.target.dataset.id;
+      const id = parseInt(e.target.dataset.id);
       if (!confirm('Delete?')) return;
       isBusy = true;
       disableButtons(true);
       statusEl.textContent = '🟠 Deleting...';
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
-      allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
-      await saveFullBasket();
+      allRecords = allRecords.filter(r => r.id !== id);
+      await saveToCloud();
       await loadFromCloud();
       startPolling();
       isBusy = false;
@@ -177,8 +176,12 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
+      // Load current records first to avoid overwriting
+      await loadFromCloud();
+
+      const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
       const newRecord = {
-        uniqueId: Date.now().toString(36) + Math.random().toString(36).substr(2),
+        id: nextId,
         date,
         player,
         win,
@@ -187,23 +190,10 @@
         playerDisplay: playerText
       };
 
-      try {
-        const res = await fetch(POST_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newRecord)
-        });
-        if (!res.ok) throw new Error('Add failed');
-      } catch (e) {
-        alert('Add failed — please try again');
-        console.error(e);
-        startPolling();
-        isBusy = false;
-        disableButtons(false);
-        return;
-      }
+      allRecords.unshift(newRecord);
+      await saveToCloud();
+      await loadFromCloud();
 
-      await loadFromCloud(); // Refresh from cloud
       document.getElementById('amountInput').value = '';
       startPolling();
       isBusy = false;
@@ -223,7 +213,7 @@
           <td>$${Number(r.win).toLocaleString()}</td>
           <td>$${Number(r.lose).toLocaleString()}</td>
           <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-          <td><button class="delete-btn" data-id="${r.uniqueId}">🗑️</button></td>
+          <td><button class="delete-btn" data-id="${r.id}">🗑️</button></td>
         </tr>
       `).join('');
 
