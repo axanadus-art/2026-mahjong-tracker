@@ -106,20 +106,18 @@
       }
     }
 
-    async function clearAndSave(updatedArray) {
-      // Step 1: Clear the basket
-      await fetch(API_BASE, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ records: [] })
-      });
-
-      // Step 2: Save the full updated array
-      await fetch(API_BASE, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ records: updatedArray })
-      });
+    async function saveToCloud() {
+      try {
+        await fetch(API_BASE, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ records: allRecords })
+        });
+        return true;
+      } catch (e) {
+        console.log('Save failed', e);
+        return false;
+      }
     }
 
     function startPolling() {
@@ -141,7 +139,7 @@
       clearInterval(pollInterval);
       await loadFromCloud();
       allRecords = allRecords.filter(r => r.id !== id);
-      await clearAndSave(allRecords);
+      await saveToCloud();
       await loadFromCloud();
       startPolling();
       isBusy = false;
@@ -179,7 +177,7 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Load current data
+      // Load current
       await loadFromCloud();
 
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
@@ -195,10 +193,11 @@
 
       allRecords.unshift(newRecord);
 
-      // Delete all then add back the full list
-      await clearAndSave(allRecords);
+      // Show what is being pasted into Pantry
+      const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
+      alert(`This is the full JSON being pasted into Pantry AFTER update:\n\n${jsonToSave}`);
 
-      // Load fresh data
+      await saveToCloud();
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
