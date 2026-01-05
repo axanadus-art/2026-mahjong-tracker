@@ -68,7 +68,7 @@
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
     const GET_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
-    const POST_URL = GET_URL; // POST to append
+    const POST_URL = GET_URL; // POST to append new record
     const PUT_URL = GET_URL; // PUT to replace full basket on delete
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
@@ -81,7 +81,7 @@
 
     updateTables(allRecords);
 
-    async function loadFromCloud(showData = false) {
+    async function loadFromCloud(showReceived = false) {
       if (isBusy) return;
       try {
         const res = await fetch(GET_URL);
@@ -94,9 +94,9 @@
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
 
-          if (showData) {
-            const cloudJson = JSON.stringify({ records: allRecords }, null, 2);
-            alert(`Synced successfully!\n\nData received back from cloud:\n\n${cloudJson}`);
+          if (showReceived) {
+            const receivedJson = JSON.stringify({ records: allRecords }, null, 2);
+            alert(`Sync successful!\n\nData received back from cloud:\n\n${receivedJson}`);
           }
         } else if (res.status === 404) {
           allRecords = [];
@@ -145,7 +145,7 @@
       clearInterval(pollInterval);
       allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
       const success = await saveFullBasket();
-      await loadFromCloud(true); // Show data received back
+      await loadFromCloud(true); // Show received data
       startPolling();
       isBusy = false;
       disableButtons(false);
@@ -208,7 +208,7 @@
         return;
       }
 
-      await loadFromCloud(true); // Show the full data received back from cloud
+      await loadFromCloud(true); // Show received data from cloud
       document.getElementById('amountInput').value = '';
       startPolling();
       isBusy = false;
