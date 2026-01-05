@@ -41,12 +41,12 @@
     <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete</p>
     <div id="status" class="status offline">🔄 Connecting to cloud...</div>
     <form id="recordForm" class="input-card">
-      <input type="date" id="dateInput" value="2026-01-02">
+      <input type="date" id="dateInput" value="2026-01-05">
       <select id="playerSelect">
         <option>Gina </option><option>Anders </option><option>Kaylee </option>
         <option>Philip </option><option>Rosie </option><option>Anfern </option>
       </select>
-      <input type="number" id="amountInput" placeholder="Amount HKD" step="10">
+      <input type="number" id="amountInput" placeholder="Amount HKD"> <!-- Removed step="10" -->
       <button type="submit" id="addButton">Add ✨</button>
     </form>
     <div class="stats-card">
@@ -183,14 +183,10 @@
       statusEl.textContent = '🟠 Adding...';
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
-      allRecords.unshift(newRecord);
+      // NO optimistic add — wait for cloud
+      allRecords.unshift(newRecord);  // temporarily add for UI feedback
       const success = await saveToCloud();
-      if (success) {
-        await loadFromCloud();
-      } else {
-        alert('Add failed - please try again');
-        await loadFromCloud();
-      }
+      await loadFromCloud();  // always refresh from cloud to avoid duplicates
       document.getElementById('amountInput').value = '';
       startPolling();
       isBusy = false;
@@ -214,18 +210,18 @@
       const totals = {};
       players.forEach(p => totals[p] = {win:0, lose:0});
       records.forEach(r => {
-        if (totals[r.player]) {
-          totals[r.player].win += r.win || 0;
-          totals[r.player].lose += r.lose || 0;
-        }
+        totals[r.player] = totals[r.player] || {win:0, lose:0};
+        totals[r.player].win += r.win || 0;
+        totals[r.player].lose += r.lose || 0;
       });
       const tbody2 = document.querySelector('#totalsTable tbody');
       tbody2.innerHTML = players.map(p => {
-        const net = totals[p].win - totals[p].lose;
+        const t = totals[p];
+        const net = t.win - t.lose;
         return `<tr class="${net > 0 ? 'positive' : net < 0 ? 'negative' : ''}">
           <td><strong>${p}</strong></td>
-          <td>$${totals[p].win.toLocaleString()}</td>
-          <td>$${totals[p].lose.toLocaleString()}</td>
+          <td>$${t.win.toLocaleString()}</td>
+          <td>$${t.lose.toLocaleString()}</td>
           <td><strong>${net>0?'+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>
         </tr>`;
       }).join('');
