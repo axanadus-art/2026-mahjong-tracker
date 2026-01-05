@@ -94,6 +94,7 @@
         } else if (res.status === 404) {
           allRecords = [];
           updateTables(allRecords);
+          await saveToCloud();
           statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
         }
@@ -105,7 +106,7 @@
       }
     }
 
-    async function saveFullBasket() {
+    async function saveToCloud() {
       try {
         await fetch(API_BASE, {
           method: 'PUT',
@@ -114,7 +115,7 @@
         });
         return true;
       } catch (e) {
-        console.log('Full save failed', e);
+        console.log('Save failed', e);
         return false;
       }
     }
@@ -137,7 +138,7 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
       allRecords = allRecords.filter(r => r.id !== id);
-      await saveFullBasket();
+      await saveToCloud();
       await loadFromCloud();
       startPolling();
       isBusy = false;
@@ -175,6 +176,9 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
+      // Always load fresh current records first
+      await loadFromCloud();
+
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
       const newRecord = {
         id: nextId,
@@ -186,24 +190,8 @@
         playerDisplay: playerText
       };
 
-      // POST wrapped to append to the records array
-      try {
-        const res = await fetch(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ records: [newRecord] })
-        });
-        if (!res.ok) throw new Error('Add failed');
-      } catch (e) {
-        alert('Add failed — please try again');
-        console.error(e);
-        startPolling();
-        isBusy = false;
-        disableButtons(false);
-        return;
-      }
-
-      // Fetch the full updated data from cloud
+      allRecords.unshift(newRecord);
+      await saveToCloud();
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
