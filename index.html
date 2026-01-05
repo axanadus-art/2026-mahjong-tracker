@@ -172,9 +172,12 @@
 
       isBusy = true;
       disableButtons(true);
-      statusEl.textContent = '🟠 Adding... (will sync in 20 seconds)';
+      statusEl.textContent = '🟠 Adding...';
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
+
+      // Load current records
+      await loadFromCloud();
 
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
       const newRecord = {
@@ -188,18 +191,22 @@
       };
 
       allRecords.unshift(newRecord);
-      updateTables(allRecords); // Show locally immediately
 
-      // Delay the cloud update by 20 seconds to avoid race with polling
-      setTimeout(async () => {
-        await saveToCloud();
-        await loadFromCloud();
-        startPolling();
-        statusEl.textContent = '🟢 Synced';
-        statusEl.className = 'status connected';
-      }, 20000);
+      // Step 1: Clear the basket (PUT empty array)
+      await fetch(API_BASE, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: [] })
+      });
+
+      // Step 2: Immediately PUT the full updated array
+      await saveToCloud();
+
+      // Confirm with fresh load
+      await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
+      startPolling();
       isBusy = false;
       disableButtons(false);
     }
