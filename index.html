@@ -172,12 +172,9 @@
 
       isBusy = true;
       disableButtons(true);
-      statusEl.textContent = '🟠 Adding...';
+      statusEl.textContent = '🟠 Adding... (will sync in 20 seconds)';
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
-
-      // Load current data
-      await loadFromCloud();
 
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
       const newRecord = {
@@ -191,13 +188,18 @@
       };
 
       allRecords.unshift(newRecord);
+      updateTables(allRecords); // Show locally immediately
 
-      // Overwrite the basket completely
-      await saveToCloud();
-      await loadFromCloud();
+      // Delay the cloud update by 20 seconds to avoid race with polling
+      setTimeout(async () => {
+        await saveToCloud();
+        await loadFromCloud();
+        startPolling();
+        statusEl.textContent = '🟢 Synced';
+        statusEl.className = 'status connected';
+      }, 20000);
 
       document.getElementById('amountInput').value = '';
-      startPolling();
       isBusy = false;
       disableButtons(false);
     }
