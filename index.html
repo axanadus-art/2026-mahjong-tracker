@@ -86,8 +86,8 @@
         if (res.ok) {
           const data = await res.json();
           allRecords = data.records || [];
-          // Assign simple sequential IDs
-          allRecords.forEach((r, i) => r.id = allRecords.length - i); // Newest gets highest ID
+          // Simple sequential IDs (highest = newest)
+          allRecords.forEach((r, i) => r.id = allRecords.length - i);
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
@@ -139,7 +139,7 @@
       clearInterval(pollInterval);
       allRecords = allRecords.filter(r => r.id !== id);
       const success = await saveToCloud();
-      await loadFromCloud(); // Force refresh
+      await loadFromCloud();
       startPolling();
       isBusy = false;
       disableButtons(false);
@@ -188,11 +188,11 @@
         playerDisplay: playerText
       };
 
-      // Add to array and save
+      // Add to array and save to cloud
       allRecords.unshift(newRecord);
       const success = await saveToCloud();
 
-      // Always refresh from cloud — prevents any duplicate risk
+      // Always load fresh data from cloud — no local trust
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
