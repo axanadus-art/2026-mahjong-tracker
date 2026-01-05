@@ -68,8 +68,8 @@
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
     const GET_URL = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
-    const POST_URL = GET_URL; // POST to append new record
-    const PUT_URL = GET_URL; // PUT to replace full basket on delete
+    const POST_URL = GET_URL;
+    const PUT_URL = GET_URL;
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
@@ -81,7 +81,7 @@
 
     updateTables(allRecords);
 
-    async function loadFromCloud(showReceived = false) {
+    async function loadFromCloud() {
       if (isBusy) return;
       try {
         const res = await fetch(GET_URL);
@@ -93,11 +93,6 @@
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
-
-          if (showReceived) {
-            const receivedJson = JSON.stringify({ records: allRecords }, null, 2);
-            alert(`Sync successful!\n\nData received back from cloud:\n\n${receivedJson}`);
-          }
         } else if (res.status === 404) {
           allRecords = [];
           updateTables(allRecords);
@@ -128,10 +123,10 @@
 
     function startPolling() {
       if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(() => loadFromCloud(false), 3000);
+      pollInterval = setInterval(loadFromCloud, 3000);
     }
 
-    loadFromCloud(false);
+    loadFromCloud();
     startPolling();
 
     recordsTbody.addEventListener('click', async (e) => {
@@ -144,8 +139,8 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
       allRecords = allRecords.filter(r => r.uniqueId !== uniqueId);
-      const success = await saveFullBasket();
-      await loadFromCloud(true); // Show received data
+      await saveFullBasket();
+      await loadFromCloud();
       startPolling();
       isBusy = false;
       disableButtons(false);
@@ -208,7 +203,7 @@
         return;
       }
 
-      await loadFromCloud(true); // Show received data from cloud
+      await loadFromCloud(); // Refresh from cloud
       document.getElementById('amountInput').value = '';
       startPolling();
       isBusy = false;
