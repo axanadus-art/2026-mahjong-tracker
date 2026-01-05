@@ -176,7 +176,6 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Load current records first to avoid overwriting
       await loadFromCloud();
 
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
@@ -191,6 +190,11 @@
       };
 
       allRecords.unshift(newRecord);
+
+      // Show the updated array before saving
+      const updatedJson = JSON.stringify({ records: allRecords }, null, 2);
+      alert(`This is the updated array that will be saved to Pantry:\n\n${updatedJson}`);
+
       await saveToCloud();
       await loadFromCloud();
 
