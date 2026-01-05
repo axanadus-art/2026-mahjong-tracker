@@ -26,13 +26,6 @@
     .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
     .offline { background: #FFF3E0; color: #EF6C00; }
     .syncing { background: #E3F2FD; color: #1976D2; }
-
-    /* Debug JSON box - always visible when needed */
-    #debugBox { background: #f9f9f9; border: 3px solid #FF8AB3; border-radius: 15px; padding: 20px; margin: 30px 0; }
-    #debugJson { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; max-height: 500px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
-    #copyBtn { background: #FF8AB3; color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; margin-top: 15px; font-size: 16px; }
-    #copyBtn:hover { background: #ff6b9d; }
-
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
       th, td { padding: 12px 8px; font-size: 14px; }
@@ -70,15 +63,7 @@
         <tbody></tbody>
       </table>
     </div>
-
-    <!-- Debug box - always visible at bottom -->
-    <div id="debugBox">
-      <h3>Full JSON Being Saved to Pantry (after add)</h3>
-      <pre id="debugJson">No data yet — add a record to see the JSON</pre>
-      <button id="copyBtn">Copy JSON to Clipboard</button>
-    </div>
   </div>
-
   <script>
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
@@ -101,7 +86,16 @@
         if (res.ok) {
           const data = await res.json();
           allRecords = data.records || [];
-          allRecords.forEach((r, i) => r.id = r.id || (allRecords.length - i));
+          // Clean up old uniqueId fields if present
+          allRecords = allRecords.map(r => ({
+            id: r.id || Date.now(),
+            date: r.date,
+            player: r.player,
+            win: r.win || 0,
+            lose: r.lose || 0,
+            net: r.net || 0,
+            playerDisplay: r.playerDisplay || r.player
+          }));
           allRecords.sort((a, b) => b.id - a.id);
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
@@ -137,7 +131,7 @@
 
     function startPolling() {
       if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(loadFromCloud, 20000); // 20 seconds
+      pollInterval = setInterval(loadFromCloud, 20000);
     }
 
     loadFromCloud();
@@ -207,10 +201,6 @@
 
       allRecords.unshift(newRecord);
 
-      // Show the full JSON in the debug box
-      const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
-      document.getElementById('debugJson').textContent = jsonToSave;
-
       await saveToCloud();
       await loadFromCloud();
 
@@ -219,16 +209,6 @@
       isBusy = false;
       disableButtons(false);
     }
-
-    // Copy button
-    document.getElementById('copyBtn').addEventListener('click', () => {
-      const text = document.getElementById('debugJson').textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        alert('Full JSON copied to clipboard!');
-      }).catch(() => {
-        alert('Copy failed — select and copy manually');
-      });
-    });
 
     function disableButtons(disabled) {
       addButton.disabled = disabled;
