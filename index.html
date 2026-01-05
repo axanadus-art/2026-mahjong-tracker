@@ -85,15 +85,9 @@
         const res = await fetch(API_BASE);
         if (res.ok) {
           const data = await res.json();
-          allRecords = (data.records || []).map((r, index) => ({
-            ...r,
-            id: r.id || (index + 1)  // Simple sequential ID
-          }));
-          // Ensure IDs are sequential and unique
-          allRecords.forEach((r, i) => {
-            r.id = i + 1;
-          });
-          allRecords.sort((a, b) => b.id - a.id); // Newest on top
+          allRecords = data.records || [];
+          // Assign simple sequential IDs
+          allRecords.forEach((r, i) => r.id = allRecords.length - i); // Newest gets highest ID
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
@@ -144,10 +138,8 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
       allRecords = allRecords.filter(r => r.id !== id);
-      // Re-assign sequential IDs
-      allRecords.forEach((r, i) => r.id = i + 1);
       const success = await saveToCloud();
-      await loadFromCloud();
+      await loadFromCloud(); // Force refresh
       startPolling();
       isBusy = false;
       disableButtons(false);
@@ -184,9 +176,8 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Find next ID
+      // Create new record with next ID
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
-
       const newRecord = {
         id: nextId,
         date,
@@ -197,9 +188,13 @@
         playerDisplay: playerText
       };
 
+      // Add to array and save
       allRecords.unshift(newRecord);
       const success = await saveToCloud();
-      await loadFromCloud(); // Refresh to confirm and re-sort
+
+      // Always refresh from cloud — prevents any duplicate risk
+      await loadFromCloud();
+
       document.getElementById('amountInput').value = '';
       startPolling();
       isBusy = false;
