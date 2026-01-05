@@ -101,12 +101,7 @@
         if (res.ok) {
           const data = await res.json();
           allRecords = data.records || [];
-          // Remove any leftover old records (no 'id')
-          allRecords = allRecords.filter(r => r.id !== undefined);
-          // Assign id if somehow missing
-          allRecords.forEach((r, i) => {
-            if (r.id === undefined) r.id = allRecords.length - i;
-          });
+          allRecords.forEach((r, i) => r.id = r.id || (allRecords.length - i));
           allRecords.sort((a, b) => b.id - a.id);
           updateTables(allRecords);
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
@@ -195,7 +190,7 @@
       disableButtons(true);
       statusEl.textContent = '🟠 Adding...';
       statusEl.className = 'status syncing';
-      clearInterval(pollInterval);
+      clearInterval(pollInterval); // Pause polling to prevent race
 
       await loadFromCloud();
 
@@ -212,15 +207,17 @@
 
       allRecords.unshift(newRecord);
 
-      // Show the full JSON
+      // Show the full JSON in the debug box
       const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
       document.getElementById('debugJson').textContent = jsonToSave;
 
       await saveToCloud();
+
+      // One final load to confirm
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
-      startPolling();
+      startPolling(); // Restart polling
       isBusy = false;
       disableButtons(false);
     }
