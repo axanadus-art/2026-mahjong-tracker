@@ -122,7 +122,7 @@
 
     function startPolling() {
       if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(loadFromCloud, 3000);
+      pollInterval = setInterval(loadFromCloud, 20000); // 20 seconds as requested
     }
 
     loadFromCloud();
@@ -176,7 +176,7 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Load current records
+      // Load current records first
       await loadFromCloud();
 
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
@@ -191,11 +191,7 @@
       };
 
       allRecords.unshift(newRecord);
-
-      // Single PUT — overwrites with full list
       await saveToCloud();
-
-      // Confirm with fresh load
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
