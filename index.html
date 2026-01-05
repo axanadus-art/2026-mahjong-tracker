@@ -176,7 +176,7 @@
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
 
-      // Always load fresh current records first
+      // Load current records first to avoid overwriting
       await loadFromCloud();
 
       const nextId = allRecords.length > 0 ? Math.max(...allRecords.map(r => r.id)) + 1 : 1;
