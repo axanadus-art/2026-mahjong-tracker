@@ -65,7 +65,7 @@
       </table>
     </div>
 
-    <!-- Daily Records Grid: Rows = Date, Columns = Player Net only -->
+    <!-- Daily Net Grid: Rows = Date, Columns = Player Net only -->
     <div class="stats-card">
       <h3>📊 Daily Net Win/Loss</h3>
       <table id="recordsTable">
@@ -203,15 +203,16 @@
       const totalsTbody = document.querySelector('#totalsTable tbody');
       totalsTbody.innerHTML = players.map(p => {
         const t = totals[p];
+        const netDisplay = t.net >= 0 ? `+$${t.net.toLocaleString()}` : `−$${Math.abs(t.net).toLocaleString()}`;
         return `<tr class="${t.net > 0 ? 'positive' : t.net < 0 ? 'negative' : ''}">
           <td><strong>${p}</strong></td>
           <td>$${t.win.toLocaleString()}</td>
           <td>$${t.lose.toLocaleString()}</td>
-          <td><strong>${t.net > 0 ? '+' : ''}$${Math.abs(t.net).toLocaleString()}</strong></td>
+          <td><strong>${netDisplay}</strong></td>
         </tr>`;
       }).join('');
 
-      // === Daily Net Grid: Rows = Date, Columns = Player Net ===
+      // === Daily Net Grid ===
       const byDate = {};
       allRecords.forEach(r => {
         if (!byDate[r.date]) byDate[r.date] = {};
@@ -226,8 +227,9 @@
         let row = `<tr><td class="date-cell">${date}</td>`;
         players.forEach(p => {
           const net = byDate[date][p] || 0;
+          const netDisplay = net >= 0 ? `+$${net.toLocaleString()}` : `−$${Math.abs(net).toLocaleString()}`;
           const netClass = net > 0 ? 'positive' : net < 0 ? 'negative' : '';
-          row += `<td class="${netClass}"><strong>${net > 0 ? '+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>`;
+          row += `<td class="${netClass}"><strong>${netDisplay}</strong></td>`;
         });
         row += `</tr>`;
         return row;
