@@ -17,12 +17,12 @@
     .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
     table { width: 100%; border-collapse: collapse; min-width: 600px; }
     th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 15px; text-align: center; font-weight: 700; }
-    td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
+    td { padding: 15px; text-align: center; border-bottom: 1px solid #eee; }
     .date-cell { text-align: left; font-weight: 700; background: #f0f0f0; min-width: 120px; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
 
-    /* Compact individual entries table */
+    /* Compact individual entries */
     #rawRecordsTable { font-size: 14px; }
     #rawRecordsTable th, #rawRecordsTable td { padding: 8px 10px; }
     #rawRecordsTable .action-btns button { padding: 6px 10px; font-size: 13px; margin: 0 3px; }
@@ -38,7 +38,7 @@
     .syncing { background: #E3F2FD; color: #1976D2; }
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
-      th, td { padding: 8px; font-size: 13px; }
+      th, td { padding: 10px; font-size: 14px; }
       input, select { min-width: 100%; }
       #rawRecordsTable th, #rawRecordsTable td { padding: 6px; font-size: 12px; }
     }
@@ -65,17 +65,15 @@
       <button type="submit" id="addButton">Add ✨</button>
     </form>
 
-    <!-- Player Totals (ranked) -->
+    <!-- Player Totals - only Player and Win/Loss (Net) -->
     <div class="stats-card">
-      <h3>💰 Player Totals (Ranked by Net)</h3>
+      <h3>💰 Player Totals (Ranked by Win/Loss)</h3>
       <table id="totalsTable">
         <thead>
           <tr>
             <th>Rank</th>
             <th>Player</th>
-            <th>Win</th>
-            <th>Lose</th>
-            <th>Net</th>
+            <th>Win/Loss</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -101,16 +99,16 @@
       </table>
     </div>
 
-    <!-- Compact Individual Entries with Edit/Delete -->
+    <!-- Compact Individual Entries (latest first) -->
     <div class="stats-card">
-      <h3>🗒️ All Individual Entries</h3>
+      <h3>🗒️ All Individual Entries (Latest First)</h3>
       <table id="rawRecordsTable">
         <thead>
           <tr>
             <th>Date</th>
             <th>Player</th>
             <th>Amount</th>
-            <th>Net</th>
+            <th>Win/Loss</th>
             <th>Action</th>
           </tr>
         </thead>
@@ -138,7 +136,7 @@
           const data = await res.json();
           allRecords = data.records || [];
           allRecords.forEach((r, i) => r.id = r.id || (allRecords.length - i));
-          allRecords.sort((a, b) => b.id - a.id);
+          allRecords.sort((a, b) => b.id - a.id); // newest first
           updateTables();
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
@@ -177,12 +175,11 @@
     loadFromCloud();
     startPolling();
 
-    // Edit and Delete buttons
+    // Edit and Delete
     document.querySelector('#rawRecordsTable tbody').addEventListener('click', async (e) => {
       const btn = e.target;
       if (isBusy) return;
 
-      const row = btn.closest('tr');
       const id = parseInt(btn.dataset.id);
 
       if (btn.classList.contains('delete-btn')) {
@@ -199,7 +196,7 @@
         startPolling();
         isBusy = false;
       } else if (btn.classList.contains('edit-btn')) {
-        const currentAmount = prompt('Enter new amount (positive = win, negative = loss):', row.cells[2].textContent.replace('$', ''));
+        const currentAmount = prompt('Enter new amount (positive = win, negative = loss):', '');
         if (currentAmount === null) return;
         const newAmount = parseFloat(currentAmount);
         if (isNaN(newAmount) || newAmount === 0) {
@@ -276,20 +273,18 @@
     }
 
     function updateTables() {
-      // === Player Totals (ranked) ===
+      // === Player Totals - only Win/Loss (Net) ===
       const totals = {};
-      players.forEach(p => totals[p] = {win: 0, lose: 0, net: 0});
+      players.forEach(p => totals[p] = {net: 0});
       allRecords.forEach(r => {
         if (totals[r.player]) {
-          totals[r.player].win += Number(r.win);
-          totals[r.player].lose += Number(r.lose);
           totals[r.player].net += Number(r.net);
         }
       });
 
       const rankedPlayers = players.map(p => ({
         player: p,
-        ...totals[p]
+        net: totals[p].net
       })).sort((a, b) => b.net - a.net);
 
       const totalsTbody = document.querySelector('#totalsTable tbody');
@@ -298,8 +293,6 @@
         return `<tr class="${p.net > 0 ? 'positive' : p.net < 0 ? 'negative' : ''}">
           <td><strong>#${index + 1}</strong></td>
           <td><strong>${p.player}</strong></td>
-          <td>$${p.win.toLocaleString()}</td>
-          <td>$${p.lose.toLocaleString()}</td>
           <td><strong>${netDisplay}</strong></td>
         </tr>`;
       }).join('');
@@ -327,7 +320,7 @@
         return row;
       }).join('');
 
-      // === Compact Individual Entries with Edit/Delete ===
+      // === Individual Entries - newest first ===
       const rawTbody = document.querySelector('#rawRecordsTable tbody');
       rawTbody.innerHTML = allRecords.map(r => {
         const amountDisplay = r.net >= 0 ? `+$${r.net.toLocaleString()}` : `−$${Math.abs(r.net).toLocaleString()}`;
