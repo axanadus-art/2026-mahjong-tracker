@@ -21,10 +21,8 @@
     .date-cell { text-align: left; font-weight: 700; background: #f0f0f0; min-width: 120px; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
-    .delete-btn { background: #FF6B6B; color: white; border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; }
-    .delete-btn:hover { background: #ff4444; }
     .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
-    .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
+    .connected { background: linear_gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
     .offline { background: #FFF3E0; color: #EF6C00; }
     .syncing { background: #E3F2FD; color: #1976D2; }
     @media (max-width: 768px) {
@@ -44,19 +42,24 @@
     <form id="recordForm" class="input-card">
       <input type="date" id="dateInput" value="2026-01-06">
       <select id="playerSelect">
-        <option>Gina </option><option>Anders </option><option>Kaylee </option>
-        <option>Philip </option><option>Rosie </option><option>Anfern </option>
+        <option>Anfern</option>
+        <option>Anders</option>
+        <option>Gina</option>
+        <option>Kaylee</option>
+        <option>Philip</option>
+        <option>Rosie</option>
       </select>
       <input type="number" id="amountInput" placeholder="Amount HKD">
       <button type="submit" id="addButton">Add ✨</button>
     </form>
 
-    <!-- Player Totals -->
+    <!-- Player Totals (ranked highest to lowest Net) -->
     <div class="stats-card">
-      <h3>💰 Player Totals</h3>
+      <h3>💰 Player Totals (Ranked by Net)</h3>
       <table id="totalsTable">
         <thead>
           <tr>
+            <th>Rank</th>
             <th>Player</th>
             <th>Win</th>
             <th>Lose</th>
@@ -74,19 +77,19 @@
         <thead>
           <tr>
             <th>Date</th>
-            <th>Gina</th>
+            <th>Anfern</th>
             <th>Anders</th>
+            <th>Gina</th>
             <th>Kaylee</th>
             <th>Philip</th>
             <th>Rosie</th>
-            <th>Anfern</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
     </div>
 
-    <!-- Individual Raw Entries (with delete) -->
+    <!-- Individual Raw Entries -->
     <div class="stats-card">
       <h3>🗒️ All Individual Entries</h3>
       <table id="rawRecordsTable">
@@ -108,7 +111,7 @@
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
     const API_BASE = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
-    const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
+    const players = ['Anfern', 'Anders', 'Gina', 'Kaylee', 'Philip', 'Rosie']; // Alphabetical
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
     let allRecords = [];
@@ -162,7 +165,7 @@
     loadFromCloud();
     startPolling();
 
-    // Delete individual entry
+    // Delete from raw table
     document.querySelector('#rawRecordsTable tbody').addEventListener('click', async (e) => {
       if (isBusy || !e.target.classList.contains('delete-btn')) return;
       const id = parseInt(e.target.dataset.id);
@@ -226,7 +229,7 @@
     }
 
     function updateTables() {
-      // === Player Totals ===
+      // === Player Totals (ranked highest to lowest Net) ===
       const totals = {};
       players.forEach(p => totals[p] = {win: 0, lose: 0, net: 0});
       allRecords.forEach(r => {
@@ -237,14 +240,20 @@
         }
       });
 
+      // Convert to array and sort by net descending
+      const rankedPlayers = players.map(p => ({
+        player: p,
+        ...totals[p]
+      })).sort((a, b) => b.net - a.net);
+
       const totalsTbody = document.querySelector('#totalsTable tbody');
-      totalsTbody.innerHTML = players.map(p => {
-        const t = totals[p];
-        const netDisplay = t.net >= 0 ? `+$${t.net.toLocaleString()}` : `−$${Math.abs(t.net).toLocaleString()}`;
-        return `<tr class="${t.net > 0 ? 'positive' : t.net < 0 ? 'negative' : ''}">
-          <td><strong>${p}</strong></td>
-          <td>$${t.win.toLocaleString()}</td>
-          <td>$${t.lose.toLocaleString()}</td>
+      totalsTbody.innerHTML = rankedPlayers.map((p, index) => {
+        const netDisplay = p.net >= 0 ? `+$${p.net.toLocaleString()}` : `−$${Math.abs(p.net).toLocaleString()}`;
+        return `<tr class="${p.net > 0 ? 'positive' : p.net < 0 ? 'negative' : ''}">
+          <td><strong>#${index + 1}</strong></td>
+          <td><strong>${p.player}</strong></td>
+          <td>$${p.win.toLocaleString()}</td>
+          <td>$${p.lose.toLocaleString()}</td>
           <td><strong>${netDisplay}</strong></td>
         </tr>`;
       }).join('');
@@ -272,7 +281,7 @@
         return row;
       }).join('');
 
-      // === Raw Individual Entries (bottom) ===
+      // === Raw Individual Entries ===
       const rawTbody = document.querySelector('#rawRecordsTable tbody');
       rawTbody.innerHTML = allRecords.map(r => {
         const amountDisplay = r.net >= 0 ? `+$${r.net.toLocaleString()}` : `−$${Math.abs(r.net).toLocaleString()}`;
