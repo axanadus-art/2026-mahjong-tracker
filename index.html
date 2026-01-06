@@ -14,25 +14,17 @@
     select, input[type="number"], input[type="date"] { padding: 12px 15px; border: 3px solid #BDE0FE; border-radius: 12px; font-size: 16px; font-family: inherit; min-width: 140px; }
     button { background: linear-gradient(135deg, #FF8AB3, #FFB3D1); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 18px; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
     button:hover:not(:disabled) { transform: scale(1.05); }
-    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 20px; }
+    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 30px; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 20px; text-align: left; font-weight: 700; }
-    td { padding: 18px 20px; border-bottom: 1px solid #eee; }
+    th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 18px; text-align: center; font-weight: 700; }
+    td { padding: 18px; text-align: center; border-bottom: 1px solid #eee; }
+    .player-name { text-align: left !important; font-weight: 700; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
-    .delete-btn { background: linear-gradient(135deg, #FF6B6B, #FF8E8E) !important; padding: 8px 12px !important; font-size: 14px !important; border-radius: 15px !important; }
-    .delete-btn:hover { transform: scale(1.1) !important; }
     .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
     .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
     .offline { background: #FFF3E0; color: #EF6C00; }
     .syncing { background: #E3F2FD; color: #1976D2; }
-
-    /* Debug box - always visible */
-    #debugBox { background: #f9f9f9; border: 3px solid #FF8AB3; border-radius: 15px; padding: 20px; margin: 30px 0; }
-    #debugJson { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 10px; max-height: 500px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; word-wrap: break-word; }
-    #copyBtn { background: #FF8AB3; color: white; border: none; padding: 12px 24px; border-radius: 10px; cursor: pointer; margin-top: 15px; font-size: 16px; }
-    #copyBtn:hover { background: #ff6b9d; }
-
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
       th, td { padding: 12px 8px; font-size: 14px; }
@@ -56,26 +48,39 @@
       <input type="number" id="amountInput" placeholder="Amount HKD">
       <button type="submit" id="addButton">Add ✨</button>
     </form>
+
+    <!-- Totals table - now above Records -->
     <div class="stats-card">
-      <h3>📊 Records</h3>
-      <table id="recordsTable">
-        <thead><tr><th>Date</th><th>Player</th><th>Win</th><th>Lose</th><th>Net</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <div class="stats-card">
-      <h3>💰 Totals</h3>
+      <h3>💰 Player Totals</h3>
       <table id="totalsTable">
-        <thead><tr><th>Player</th><th>Win</th><th>Lose</th><th>Net</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Win</th>
+            <th>Lose</th>
+            <th>Net</th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
 
-    <!-- Debug box - always visible -->
-    <div id="debugBox">
-      <h3>Full JSON Being Saved to Pantry (after add)</h3>
-      <pre id="debugJson">No data yet — add a record to see the JSON</pre>
-      <button id="copyBtn">Copy JSON to Clipboard</button>
+    <!-- Records table - now player-focused grid -->
+    <div class="stats-card">
+      <h3>📊 Player Records</h3>
+      <table id="recordsTable">
+        <thead>
+          <tr>
+            <th>Player</th>
+            <th>Date</th>
+            <th>Win</th>
+            <th>Lose</th>
+            <th>Net</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
@@ -88,6 +93,7 @@
     const form = document.getElementById('recordForm');
     const addButton = document.getElementById('addButton');
     const recordsTbody = document.querySelector('#recordsTable tbody');
+    const totalsTbody = document.querySelector('#totalsTable tbody');
     let allRecords = [];
     let isBusy = false;
     let pollInterval;
@@ -190,7 +196,7 @@
       disableButtons(true);
       statusEl.textContent = '🟠 Adding...';
       statusEl.className = 'status syncing';
-      clearInterval(pollInterval); // Pause polling to prevent race
+      clearInterval(pollInterval);
 
       await loadFromCloud();
 
@@ -206,31 +212,14 @@
       };
 
       allRecords.unshift(newRecord);
-
-      // Show the full JSON in the debug box
-      const jsonToSave = JSON.stringify({ records: allRecords }, null, 2);
-      document.getElementById('debugJson').textContent = jsonToSave;
-
       await saveToCloud();
-
-      // One final load to confirm
       await loadFromCloud();
 
       document.getElementById('amountInput').value = '';
-      startPolling(); // Restart polling
+      startPolling();
       isBusy = false;
       disableButtons(false);
     }
-
-    // Copy button
-    document.getElementById('copyBtn').addEventListener('click', () => {
-      const text = document.getElementById('debugJson').textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        alert('Full JSON copied to clipboard!');
-      }).catch(() => {
-        alert('Copy failed — select and copy manually');
-      });
-    });
 
     function disableButtons(disabled) {
       addButton.disabled = disabled;
@@ -238,36 +227,37 @@
     }
 
     function updateTables(records) {
-      recordsTbody.innerHTML = records.slice(0, 50).map(r => `
+      // Update Totals table
+      const totals = {};
+      players.forEach(p => totals[p] = {win: 0, lose: 0, net: 0});
+      records.forEach(r => {
+        if (!totals[r.player]) totals[r.player] = {win: 0, lose: 0, net: 0};
+        totals[r.player].win += Number(r.win || 0);
+        totals[r.player].lose += Number(r.lose || 0);
+        totals[r.player].net += Number(r.net || 0);
+      });
+
+      totalsTbody.innerHTML = players.map(p => {
+        const t = totals[p];
+        return `<tr class="${t.net > 0 ? 'positive' : t.net < 0 ? 'negative' : ''}">
+          <td class="player-name"><strong>${p}</strong></td>
+          <td>$${t.win.toLocaleString()}</td>
+          <td>$${t.lose.toLocaleString()}</td>
+          <td><strong>${t.net > 0 ? '+' : ''}$${Math.abs(t.net).toLocaleString()}</strong></td>
+        </tr>`;
+      }).join('');
+
+      // Update Records table (player-focused)
+      recordsTbody.innerHTML = records.map(r => `
         <tr>
+          <td class="player-name"><strong>${r.playerDisplay}</strong></td>
           <td>${r.date}</td>
-          <td>${r.playerDisplay}</td>
           <td>$${Number(r.win).toLocaleString()}</td>
           <td>$${Number(r.lose).toLocaleString()}</td>
           <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
           <td><button class="delete-btn" data-id="${r.id}">🗑️</button></td>
         </tr>
       `).join('');
-
-      const totals = {};
-      players.forEach(p => totals[p] = {win: 0, lose: 0});
-      records.forEach(r => {
-        if (!totals[r.player]) totals[r.player] = {win: 0, lose: 0};
-        totals[r.player].win += Number(r.win || 0);
-        totals[r.player].lose += Number(r.lose || 0);
-      });
-
-      const tbody2 = document.querySelector('#totalsTable tbody');
-      tbody2.innerHTML = players.map(p => {
-        const t = totals[p];
-        const net = t.win - t.lose;
-        return `<tr class="${net > 0 ? 'positive' : net < 0 ? 'negative' : ''}">
-          <td><strong>${p}</strong></td>
-          <td>$${t.win.toLocaleString()}</td>
-          <td>$${t.lose.toLocaleString()}</td>
-          <td><strong>${net > 0 ? '+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>
-        </tr>`;
-      }).join('');
     }
   </script>
 </body>
