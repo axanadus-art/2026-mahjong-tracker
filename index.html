@@ -15,10 +15,10 @@
     button { background: linear-gradient(135deg, #FF8AB3, #FFB3D1); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 18px; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
     button:hover:not(:disabled) { transform: scale(1.05); }
     .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
-    table { width: 100%; border-collapse: collapse; min-width: 800px; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; }
     th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 15px; text-align: center; font-weight: 700; }
     td { padding: 15px; text-align: center; border-bottom: 1px solid #eee; }
-    .date-cell { text-align: left; font-weight: 700; background: #f0f0f0; }
+    .date-cell { text-align: left; font-weight: 700; background: #f0f0f0; min-width: 120px; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
     .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
@@ -37,7 +37,7 @@
 <body>
   <div class="container">
     <h1>🎰 2026 Mahjong Tracker 🎰</h1>
-    <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete (not yet implemented in grid)</p>
+    <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete (not yet in grid)</p>
     <div id="status" class="status offline">🔄 Connecting to cloud...</div>
     <form id="recordForm" class="input-card">
       <input type="date" id="dateInput" value="2026-01-06">
@@ -65,12 +65,22 @@
       </table>
     </div>
 
-    <!-- Records Grid: Rows = Date, Columns = Player (Win/Lose/Net) -->
+    <!-- Daily Records Grid: Rows = Date, Columns = Player Net only -->
     <div class="stats-card">
-      <h3>📊 Daily Records (by Date)</h3>
+      <h3>📊 Daily Net Win/Loss</h3>
       <table id="recordsTable">
-        <thead id="recordsHeader"></thead>
-        <tbody id="recordsBody"></tbody>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Gina</th>
+            <th>Anders</th>
+            <th>Kaylee</th>
+            <th>Philip</th>
+            <th>Rosie</th>
+            <th>Anfern</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
   </div>
@@ -172,7 +182,6 @@
       allRecords.unshift(newRecord);
       await saveToCloud();
       updateTables();
-      await loadFromCloud(); // refresh to be safe
 
       document.getElementById('amountInput').value = '';
       startPolling();
@@ -202,44 +211,27 @@
         </tr>`;
       }).join('');
 
-      // === Records Grid: Rows = Date, Columns = Player (Win/Lose/Net) ===
-      // Group by date
+      // === Daily Net Grid: Rows = Date, Columns = Player Net ===
       const byDate = {};
       allRecords.forEach(r => {
         if (!byDate[r.date]) byDate[r.date] = {};
-        if (!byDate[r.date][r.player]) byDate[r.date][r.player] = {win: 0, lose: 0, net: 0};
-        byDate[r.date][r.player].win += Number(r.win);
-        byDate[r.date][r.player].lose += Number(r.lose);
-        byDate[r.date][r.player].net += Number(r.net);
+        if (!byDate[r.date][r.player]) byDate[r.date][r.player] = 0;
+        byDate[r.date][r.player] += Number(r.net);
       });
 
       const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a)); // newest first
 
-      // Build header
-      let headerHTML = `<tr><th>Date</th>`;
-      players.forEach(p => {
-        headerHTML += `<th colspan="3">${p}</th>`;
-      });
-      headerHTML += `</tr><tr><th></th>`;
-      players.forEach(() => {
-        headerHTML += `<th>Win</th><th>Lose</th><th>Net</th>`;
-      });
-      headerHTML += `</tr>`;
-      document.getElementById('recordsHeader').innerHTML = headerHTML;
-
-      // Build body
-      const bodyHTML = dates.map(date => {
+      const tbody = document.querySelector('#recordsTable tbody');
+      tbody.innerHTML = dates.map(date => {
         let row = `<tr><td class="date-cell">${date}</td>`;
         players.forEach(p => {
-          const d = byDate[date][p] || {win: 0, lose: 0, net: 0};
-          const netClass = d.net > 0 ? 'positive' : d.net < 0 ? 'negative' : '';
-          row += `<td>$${d.win.toLocaleString()}</td><td>$${d.lose.toLocaleString()}</td><td class="${netClass}"><strong>${d.net > 0 ? '+' : ''}$${Math.abs(d.net).toLocaleString()}</strong></td>`;
+          const net = byDate[date][p] || 0;
+          const netClass = net > 0 ? 'positive' : net < 0 ? 'negative' : '';
+          row += `<td class="${netClass}"><strong>${net > 0 ? '+' : ''}$${Math.abs(net).toLocaleString()}</strong></td>`;
         });
         row += `</tr>`;
         return row;
       }).join('');
-
-      document.getElementById('recordsBody').innerHTML = bodyHTML;
     }
   </script>
 </body>
