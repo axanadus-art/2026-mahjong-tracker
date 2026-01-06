@@ -17,18 +17,30 @@
     .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
     table { width: 100%; border-collapse: collapse; min-width: 600px; }
     th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 15px; text-align: center; font-weight: 700; }
-    td { padding: 15px; text-align: center; border-bottom: 1px solid #eee; }
+    td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
     .date-cell { text-align: left; font-weight: 700; background: #f0f0f0; min-width: 120px; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
+
+    /* Compact individual entries table */
+    #rawRecordsTable { font-size: 14px; }
+    #rawRecordsTable th, #rawRecordsTable td { padding: 8px 10px; }
+    #rawRecordsTable .action-btns button { padding: 6px 10px; font-size: 13px; margin: 0 3px; }
+
+    .edit-btn { background: #4CAF50; }
+    .edit-btn:hover { background: #45a049; }
+    .delete-btn { background: #f44336; }
+    .delete-btn:hover { background: #da190b; }
+
     .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
-    .connected { background: linear_gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
+    .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
     .offline { background: #FFF3E0; color: #EF6C00; }
     .syncing { background: #E3F2FD; color: #1976D2; }
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
-      th, td { padding: 10px; font-size: 14px; }
+      th, td { padding: 8px; font-size: 13px; }
       input, select { min-width: 100%; }
+      #rawRecordsTable th, #rawRecordsTable td { padding: 6px; font-size: 12px; }
     }
   </style>
   <script defer data-domain="mahjong2026.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script>
@@ -37,7 +49,7 @@
 <body>
   <div class="container">
     <h1>🎰 2026 Mahjong Tracker 🎰</h1>
-    <p style="text-align:center;color:#666;">Enter to add | Delete individual entries below</p>
+    <p style="text-align:center;color:#666;">Enter to add | Edit or delete individual entries below</p>
     <div id="status" class="status offline">🔄 Connecting to cloud...</div>
     <form id="recordForm" class="input-card">
       <input type="date" id="dateInput" value="2026-01-06">
@@ -53,7 +65,7 @@
       <button type="submit" id="addButton">Add ✨</button>
     </form>
 
-    <!-- Player Totals (ranked highest to lowest Net) -->
+    <!-- Player Totals (ranked) -->
     <div class="stats-card">
       <h3>💰 Player Totals (Ranked by Net)</h3>
       <table id="totalsTable">
@@ -89,7 +101,7 @@
       </table>
     </div>
 
-    <!-- Individual Raw Entries -->
+    <!-- Compact Individual Entries with Edit/Delete -->
     <div class="stats-card">
       <h3>🗒️ All Individual Entries</h3>
       <table id="rawRecordsTable">
@@ -111,7 +123,7 @@
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
     const API_BASE = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
-    const players = ['Anfern', 'Anders', 'Gina', 'Kaylee', 'Philip', 'Rosie']; // Alphabetical
+    const players = ['Anfern', 'Anders', 'Gina', 'Kaylee', 'Philip', 'Rosie'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
     let allRecords = [];
@@ -165,22 +177,57 @@
     loadFromCloud();
     startPolling();
 
-    // Delete from raw table
+    // Edit and Delete buttons
     document.querySelector('#rawRecordsTable tbody').addEventListener('click', async (e) => {
-      if (isBusy || !e.target.classList.contains('delete-btn')) return;
-      const id = parseInt(e.target.dataset.id);
-      if (!confirm('Delete this entry?')) return;
-      isBusy = true;
-      statusEl.textContent = '🟠 Deleting...';
-      statusEl.className = 'status syncing';
-      clearInterval(pollInterval);
-      await loadFromCloud();
-      allRecords = allRecords.filter(r => r.id !== id);
-      await saveToCloud();
-      updateTables();
-      await loadFromCloud();
-      startPolling();
-      isBusy = false;
+      const btn = e.target;
+      if (isBusy) return;
+
+      const row = btn.closest('tr');
+      const id = parseInt(btn.dataset.id);
+
+      if (btn.classList.contains('delete-btn')) {
+        if (!confirm('Delete this entry?')) return;
+        isBusy = true;
+        statusEl.textContent = '🟠 Deleting...';
+        statusEl.className = 'status syncing';
+        clearInterval(pollInterval);
+        await loadFromCloud();
+        allRecords = allRecords.filter(r => r.id !== id);
+        await saveToCloud();
+        updateTables();
+        await loadFromCloud();
+        startPolling();
+        isBusy = false;
+      } else if (btn.classList.contains('edit-btn')) {
+        const currentAmount = prompt('Enter new amount (positive = win, negative = loss):', row.cells[2].textContent.replace('$', ''));
+        if (currentAmount === null) return;
+        const newAmount = parseFloat(currentAmount);
+        if (isNaN(newAmount) || newAmount === 0) {
+          alert('Invalid amount');
+          return;
+        }
+
+        isBusy = true;
+        statusEl.textContent = '🟠 Updating...';
+        statusEl.className = 'status syncing';
+        clearInterval(pollInterval);
+        await loadFromCloud();
+
+        const record = allRecords.find(r => r.id === id);
+        if (record) {
+          const win = newAmount > 0 ? Math.abs(newAmount) : 0;
+          const lose = newAmount < 0 ? Math.abs(newAmount) : 0;
+          record.win = win;
+          record.lose = lose;
+          record.net = win - lose;
+        }
+
+        await saveToCloud();
+        updateTables();
+        await loadFromCloud();
+        startPolling();
+        isBusy = false;
+      }
     });
 
     form.addEventListener('submit', async (e) => {
@@ -192,7 +239,7 @@
       if (isBusy) return;
       const date = document.getElementById('dateInput').value;
       const playerText = document.getElementById('playerSelect').value.trim();
-      const player = playerText.split(' ')[0];
+      const player = playerText;
       const amountStr = document.getElementById('amountInput').value.trim();
       if (!date || !amountStr) return alert('Please fill date and amount');
       const amount = parseFloat(amountStr);
@@ -229,7 +276,7 @@
     }
 
     function updateTables() {
-      // === Player Totals (ranked highest to lowest Net) ===
+      // === Player Totals (ranked) ===
       const totals = {};
       players.forEach(p => totals[p] = {win: 0, lose: 0, net: 0});
       allRecords.forEach(r => {
@@ -240,7 +287,6 @@
         }
       });
 
-      // Convert to array and sort by net descending
       const rankedPlayers = players.map(p => ({
         player: p,
         ...totals[p]
@@ -281,7 +327,7 @@
         return row;
       }).join('');
 
-      // === Raw Individual Entries ===
+      // === Compact Individual Entries with Edit/Delete ===
       const rawTbody = document.querySelector('#rawRecordsTable tbody');
       rawTbody.innerHTML = allRecords.map(r => {
         const amountDisplay = r.net >= 0 ? `+$${r.net.toLocaleString()}` : `−$${Math.abs(r.net).toLocaleString()}`;
@@ -291,7 +337,10 @@
           <td>${r.playerDisplay}</td>
           <td>$${Math.abs(r.net).toLocaleString()}</td>
           <td class="${netClass}"><strong>${amountDisplay}</strong></td>
-          <td><button class="delete-btn" data-id="${r.id}">🗑️ Delete</button></td>
+          <td class="action-btns">
+            <button class="edit-btn" data-id="${r.id}">✏️ Edit</button>
+            <button class="delete-btn" data-id="${r.id}">🗑️ Delete</button>
+          </td>
         </tr>`;
       }).join('');
     }
