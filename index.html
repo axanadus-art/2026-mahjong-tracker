@@ -21,6 +21,8 @@
     .date-cell { text-align: left; font-weight: 700; background: #f0f0f0; min-width: 120px; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
+    .delete-btn { background: #FF6B6B; color: white; border: none; padding: 8px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+    .delete-btn:hover { background: #ff4444; }
     .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
     .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
     .offline { background: #FFF3E0; color: #EF6C00; }
@@ -37,7 +39,7 @@
 <body>
   <div class="container">
     <h1>🎰 2026 Mahjong Tracker 🎰</h1>
-    <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete (not yet in grid)</p>
+    <p style="text-align:center;color:#666;">Enter to add | Delete individual entries below</p>
     <div id="status" class="status offline">🔄 Connecting to cloud...</div>
     <form id="recordForm" class="input-card">
       <input type="date" id="dateInput" value="2026-01-06">
@@ -49,7 +51,7 @@
       <button type="submit" id="addButton">Add ✨</button>
     </form>
 
-    <!-- Player Totals (above) -->
+    <!-- Player Totals -->
     <div class="stats-card">
       <h3>💰 Player Totals</h3>
       <table id="totalsTable">
@@ -65,10 +67,10 @@
       </table>
     </div>
 
-    <!-- Daily Net Grid: Rows = Date, Columns = Player Net only -->
+    <!-- Daily Net Grid -->
     <div class="stats-card">
       <h3>📊 Daily Net Win/Loss</h3>
-      <table id="recordsTable">
+      <table id="dailyGrid">
         <thead>
           <tr>
             <th>Date</th>
@@ -78,6 +80,23 @@
             <th>Philip</th>
             <th>Rosie</th>
             <th>Anfern</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Individual Raw Entries (with delete) -->
+    <div class="stats-card">
+      <h3>🗒️ All Individual Entries</h3>
+      <table id="rawRecordsTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Player</th>
+            <th>Amount</th>
+            <th>Net</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -142,6 +161,24 @@
 
     loadFromCloud();
     startPolling();
+
+    // Delete individual entry
+    document.querySelector('#rawRecordsTable tbody').addEventListener('click', async (e) => {
+      if (isBusy || !e.target.classList.contains('delete-btn')) return;
+      const id = parseInt(e.target.dataset.id);
+      if (!confirm('Delete this entry?')) return;
+      isBusy = true;
+      statusEl.textContent = '🟠 Deleting...';
+      statusEl.className = 'status syncing';
+      clearInterval(pollInterval);
+      await loadFromCloud();
+      allRecords = allRecords.filter(r => r.id !== id);
+      await saveToCloud();
+      updateTables();
+      await loadFromCloud();
+      startPolling();
+      isBusy = false;
+    });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -220,10 +257,10 @@
         byDate[r.date][r.player] += Number(r.net);
       });
 
-      const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a)); // newest first
+      const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
 
-      const tbody = document.querySelector('#recordsTable tbody');
-      tbody.innerHTML = dates.map(date => {
+      const dailyTbody = document.querySelector('#dailyGrid tbody');
+      dailyTbody.innerHTML = dates.map(date => {
         let row = `<tr><td class="date-cell">${date}</td>`;
         players.forEach(p => {
           const net = byDate[date][p] || 0;
@@ -233,6 +270,20 @@
         });
         row += `</tr>`;
         return row;
+      }).join('');
+
+      // === Raw Individual Entries (bottom) ===
+      const rawTbody = document.querySelector('#rawRecordsTable tbody');
+      rawTbody.innerHTML = allRecords.map(r => {
+        const amountDisplay = r.net >= 0 ? `+$${r.net.toLocaleString()}` : `−$${Math.abs(r.net).toLocaleString()}`;
+        const netClass = r.net > 0 ? 'positive' : r.net < 0 ? 'negative' : '';
+        return `<tr>
+          <td>${r.date}</td>
+          <td>${r.playerDisplay}</td>
+          <td>$${Math.abs(r.net).toLocaleString()}</td>
+          <td class="${netClass}"><strong>${amountDisplay}</strong></td>
+          <td><button class="delete-btn" data-id="${r.id}">🗑️ Delete</button></td>
+        </tr>`;
       }).join('');
     }
   </script>
