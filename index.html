@@ -8,17 +8,17 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #FCE1F3 0%, #D7E9FF 50%, #CDEAC0 100%); min-height: 100vh; padding: 20px; }
-    .container { max-width: 1000px; margin: 0 auto; }
+    .container { max-width: 1200px; margin: 0 auto; }
     h1 { text-align: center; color: #FF8AB3; font-size: 2.5em; margin-bottom: 10px; }
     .input-card { background: white; border-radius: 20px; padding: 30px; margin-bottom: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; }
     select, input[type="number"], input[type="date"] { padding: 12px 15px; border: 3px solid #BDE0FE; border-radius: 12px; font-size: 16px; font-family: inherit; min-width: 140px; }
     button { background: linear-gradient(135deg, #FF8AB3, #FFB3D1); color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 18px; font-weight: 700; cursor: pointer; transition: transform 0.2s; }
     button:hover:not(:disabled) { transform: scale(1.05); }
-    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow: hidden; margin-bottom: 30px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 18px; text-align: center; font-weight: 700; }
-    td { padding: 18px; text-align: center; border-bottom: 1px solid #eee; }
-    .player-name { text-align: left !important; font-weight: 700; }
+    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
+    table { width: 100%; border-collapse: collapse; min-width: 800px; }
+    th { background: linear-gradient(135deg, #FFC8DD, #FF8AB3); color: white; padding: 15px; text-align: center; font-weight: 700; }
+    td { padding: 15px; text-align: center; border-bottom: 1px solid #eee; }
+    .date-cell { text-align: left; font-weight: 700; background: #f0f0f0; }
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
     .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
@@ -27,7 +27,7 @@
     .syncing { background: #E3F2FD; color: #1976D2; }
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
-      th, td { padding: 12px 8px; font-size: 14px; }
+      th, td { padding: 10px; font-size: 14px; }
       input, select { min-width: 100%; }
     }
   </style>
@@ -37,10 +37,10 @@
 <body>
   <div class="container">
     <h1>🎰 2026 Mahjong Tracker 🎰</h1>
-    <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete</p>
+    <p style="text-align:center;color:#666;">Enter to add | 🗑️ to delete (not yet implemented in grid)</p>
     <div id="status" class="status offline">🔄 Connecting to cloud...</div>
     <form id="recordForm" class="input-card">
-      <input type="date" id="dateInput" value="2026-01-05">
+      <input type="date" id="dateInput" value="2026-01-06">
       <select id="playerSelect">
         <option>Gina </option><option>Anders </option><option>Kaylee </option>
         <option>Philip </option><option>Rosie </option><option>Anfern </option>
@@ -49,7 +49,7 @@
       <button type="submit" id="addButton">Add ✨</button>
     </form>
 
-    <!-- Totals table - now above Records -->
+    <!-- Player Totals (above) -->
     <div class="stats-card">
       <h3>💰 Player Totals</h3>
       <table id="totalsTable">
@@ -65,21 +65,12 @@
       </table>
     </div>
 
-    <!-- Records table - now player-focused grid -->
+    <!-- Records Grid: Rows = Date, Columns = Player (Win/Lose/Net) -->
     <div class="stats-card">
-      <h3>📊 Player Records</h3>
+      <h3>📊 Daily Records (by Date)</h3>
       <table id="recordsTable">
-        <thead>
-          <tr>
-            <th>Player</th>
-            <th>Date</th>
-            <th>Win</th>
-            <th>Lose</th>
-            <th>Net</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody></tbody>
+        <thead id="recordsHeader"></thead>
+        <tbody id="recordsBody"></tbody>
       </table>
     </div>
   </div>
@@ -91,14 +82,9 @@
     const players = ['Gina', 'Anders', 'Kaylee', 'Philip', 'Rosie', 'Anfern'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
-    const addButton = document.getElementById('addButton');
-    const recordsTbody = document.querySelector('#recordsTable tbody');
-    const totalsTbody = document.querySelector('#totalsTable tbody');
     let allRecords = [];
     let isBusy = false;
     let pollInterval;
-
-    updateTables(allRecords);
 
     async function loadFromCloud() {
       if (isBusy) return;
@@ -109,19 +95,19 @@
           allRecords = data.records || [];
           allRecords.forEach((r, i) => r.id = r.id || (allRecords.length - i));
           allRecords.sort((a, b) => b.id - a.id);
-          updateTables(allRecords);
+          updateTables();
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
         } else if (res.status === 404) {
           allRecords = [];
-          updateTables(allRecords);
+          updateTables();
           await saveToCloud();
           statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
         }
       } catch (e) {
         allRecords = [];
-        updateTables(allRecords);
+        updateTables();
         statusEl.textContent = '🔴 Offline — Try again later';
         statusEl.className = 'status offline';
       }
@@ -134,10 +120,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ records: allRecords })
         });
-        return true;
       } catch (e) {
         console.log('Save failed', e);
-        return false;
       }
     }
 
@@ -149,34 +133,9 @@
     loadFromCloud();
     startPolling();
 
-    recordsTbody.addEventListener('click', async (e) => {
-      if (isBusy || !e.target.classList.contains('delete-btn')) return;
-      const id = parseInt(e.target.dataset.id);
-      if (!confirm('Delete?')) return;
-      isBusy = true;
-      disableButtons(true);
-      statusEl.textContent = '🟠 Deleting...';
-      statusEl.className = 'status syncing';
-      clearInterval(pollInterval);
-      await loadFromCloud();
-      allRecords = allRecords.filter(r => r.id !== id);
-      await saveToCloud();
-      await loadFromCloud();
-      startPolling();
-      isBusy = false;
-      disableButtons(false);
-    });
-
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       await addRecord();
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.target.id === 'amountInput') {
-        e.preventDefault();
-        addRecord();
-      }
     });
 
     async function addRecord() {
@@ -193,7 +152,6 @@
       const net = win - lose;
 
       isBusy = true;
-      disableButtons(true);
       statusEl.textContent = '🟠 Adding...';
       statusEl.className = 'status syncing';
       clearInterval(pollInterval);
@@ -213,51 +171,75 @@
 
       allRecords.unshift(newRecord);
       await saveToCloud();
-      await loadFromCloud();
+      updateTables();
+      await loadFromCloud(); // refresh to be safe
 
       document.getElementById('amountInput').value = '';
       startPolling();
       isBusy = false;
-      disableButtons(false);
     }
 
-    function disableButtons(disabled) {
-      addButton.disabled = disabled;
-      document.querySelectorAll('.delete-btn').forEach(btn => btn.disabled = disabled);
-    }
-
-    function updateTables(records) {
-      // Update Totals table
+    function updateTables() {
+      // === Player Totals ===
       const totals = {};
       players.forEach(p => totals[p] = {win: 0, lose: 0, net: 0});
-      records.forEach(r => {
-        if (!totals[r.player]) totals[r.player] = {win: 0, lose: 0, net: 0};
-        totals[r.player].win += Number(r.win || 0);
-        totals[r.player].lose += Number(r.lose || 0);
-        totals[r.player].net += Number(r.net || 0);
+      allRecords.forEach(r => {
+        if (totals[r.player]) {
+          totals[r.player].win += Number(r.win);
+          totals[r.player].lose += Number(r.lose);
+          totals[r.player].net += Number(r.net);
+        }
       });
 
+      const totalsTbody = document.querySelector('#totalsTable tbody');
       totalsTbody.innerHTML = players.map(p => {
         const t = totals[p];
         return `<tr class="${t.net > 0 ? 'positive' : t.net < 0 ? 'negative' : ''}">
-          <td class="player-name"><strong>${p}</strong></td>
+          <td><strong>${p}</strong></td>
           <td>$${t.win.toLocaleString()}</td>
           <td>$${t.lose.toLocaleString()}</td>
           <td><strong>${t.net > 0 ? '+' : ''}$${Math.abs(t.net).toLocaleString()}</strong></td>
         </tr>`;
       }).join('');
 
-      // Update Records table (player-focused)
-      recordsTbody.innerHTML = records.map(r => `
-        <tr>
-          <td class="player-name"><strong>${r.playerDisplay}</strong></td>
-          <td>${r.date}</td>
-          <td>$${Number(r.win).toLocaleString()}</td>
-          <td>$${Number(r.lose).toLocaleString()}</td>
-          <td class="${r.net > 0 ? 'positive' : 'negative'}">${r.net > 0 ? '+' : ''}$${Math.abs(r.net).toLocaleString()}</td>
-          <td><button class="delete-btn" data-id="${r.id}">🗑️</button></td>
-        </tr>
-      `).join('');
+      // === Records Grid: Rows = Date, Columns = Player (Win/Lose/Net) ===
+      // Group by date
+      const byDate = {};
+      allRecords.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = {};
+        if (!byDate[r.date][r.player]) byDate[r.date][r.player] = {win: 0, lose: 0, net: 0};
+        byDate[r.date][r.player].win += Number(r.win);
+        byDate[r.date][r.player].lose += Number(r.lose);
+        byDate[r.date][r.player].net += Number(r.net);
+      });
+
+      const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a)); // newest first
+
+      // Build header
+      let headerHTML = `<tr><th>Date</th>`;
+      players.forEach(p => {
+        headerHTML += `<th colspan="3">${p}</th>`;
+      });
+      headerHTML += `</tr><tr><th></th>`;
+      players.forEach(() => {
+        headerHTML += `<th>Win</th><th>Lose</th><th>Net</th>`;
+      });
+      headerHTML += `</tr>`;
+      document.getElementById('recordsHeader').innerHTML = headerHTML;
+
+      // Build body
+      const bodyHTML = dates.map(date => {
+        let row = `<tr><td class="date-cell">${date}</td>`;
+        players.forEach(p => {
+          const d = byDate[date][p] || {win: 0, lose: 0, net: 0};
+          const netClass = d.net > 0 ? 'positive' : d.net < 0 ? 'negative' : '';
+          row += `<td>$${d.win.toLocaleString()}</td><td>$${d.lose.toLocaleString()}</td><td class="${netClass}"><strong>${d.net > 0 ? '+' : ''}$${Math.abs(d.net).toLocaleString()}</strong></td>`;
+        });
+        row += `</tr>`;
+        return row;
+      }).join('');
+
+      document.getElementById('recordsBody').innerHTML = bodyHTML;
     }
   </script>
 </body>
