@@ -25,12 +25,17 @@
     /* Compact individual entries */
     #rawRecordsTable { font-size: 14px; }
     #rawRecordsTable th, #rawRecordsTable td { padding: 8px 10px; }
-    #rawRecordsTable .action-btns button { padding: 6px 10px; font-size: 14px; margin: 0 3px; font-family: 'Nunito', sans-serif; }
+    #rawRecordsTable .action-btns button { 
+      padding: 6px 10px; 
+      font-size: 14px; 
+      margin: 0 3px; 
+      font-family: 'Nunito', sans-serif; 
+      opacity: 0.5; 
+      cursor: not-allowed; 
+    }
 
-    .edit-btn { background: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; }
-    .edit-btn:hover { background: #45a049; }
-    .delete-btn { background: #f44336; color: white; border: none; border-radius: 8px; cursor: pointer; }
-    .delete-btn:hover { background: #da190b; }
+    .edit-btn { background: #4CAF50; color: white; border: none; border-radius: 8px; }
+    .delete-btn { background: #f44336; color: white; border: none; border-radius: 8px; }
 
     .status { text-align: center; margin: 10px 0; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 16px; }
     .connected { background: linear-gradient(135deg, #CDEAC0, #A5D6A7); color: #2E7D32; }
@@ -54,12 +59,13 @@
     <h1>🎰 2026 Mahjong Tracker 🎰</h1>
     <div id="status" class="status offline">🔄 Connecting to cloud...</div>
     <form id="recordForm" class="input-card">
-      <input type="date" id="dateInput" value="2026-01-09">
+      <input type="date" id="dateInput" value="2026-01-12">
       <select id="playerSelect">
         <option>Anfern</option>
         <option>Anders</option>
         <option>Gina</option>
         <option>Kaylee</option>
+        <option>Marco</option>
         <option>Philip</option>
         <option>Rosie</option>
       </select>
@@ -93,6 +99,7 @@
             <th>Anders</th>
             <th>Gina</th>
             <th>Kaylee</th>
+            <th>Marco</th>
             <th>Philip</th>
             <th>Rosie</th>
           </tr>
@@ -101,7 +108,7 @@
       </table>
     </div>
 
-    <!-- Individual Entries (no Amount column) -->
+    <!-- Individual Entries -->
     <div class="stats-card">
       <h3>🗒️ Entries</h3>
       <table id="rawRecordsTable">
@@ -117,14 +124,14 @@
       </table>
     </div>
 
-    <p class="version">Version V3 - Deployed January 09, 2026</p>
+    <p class="version">Version V4 - Deployed January 12, 2026</p>
   </div>
 
   <script>
     const PANTRY_ID = '11f511b8-6175-47a6-93b9-923736b27f75';
     const BASKET_NAME = 'records';
     const API_BASE = `https://getpantry.cloud/apiv1/pantry/${PANTRY_ID}/basket/${BASKET_NAME}`;
-    const players = ['Anfern', 'Anders', 'Gina', 'Kaylee', 'Philip', 'Rosie'];
+    const players = ['Anfern', 'Anders', 'Gina', 'Kaylee', 'Marco', 'Philip', 'Rosie'];
     const statusEl = document.getElementById('status');
     const form = document.getElementById('recordForm');
     let allRecords = [];
@@ -139,7 +146,7 @@
           const data = await res.json();
           allRecords = data.records || [];
           allRecords.forEach((r, i) => r.id = r.id || (allRecords.length - i));
-          allRecords.sort((a, b) => b.id - a.id); // newest first
+          allRecords.sort((a, b) => b.id - a.id);
           updateTables();
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
@@ -178,55 +185,12 @@
     loadFromCloud();
     startPolling();
 
-    // Edit and Delete
-    document.querySelector('#rawRecordsTable tbody').addEventListener('click', async (e) => {
+    // Buttons are visible but do nothing
+    document.querySelector('#rawRecordsTable tbody').addEventListener('click', (e) => {
       const btn = e.target;
-      if (isBusy) return;
-
-      const id = parseInt(btn.dataset.id);
-
-      if (btn.classList.contains('delete-btn')) {
-        if (!confirm('Delete this entry?')) return;
-        isBusy = true;
-        statusEl.textContent = '🟠 Deleting...';
-        statusEl.className = 'status syncing';
-        clearInterval(pollInterval);
-        await loadFromCloud();
-        allRecords = allRecords.filter(r => r.id !== id);
-        await saveToCloud();
-        updateTables();
-        await loadFromCloud();
-        startPolling();
-        isBusy = false;
-      } else if (btn.classList.contains('edit-btn')) {
-        const currentAmount = prompt('Enter new amount (positive = win, negative = loss):', '');
-        if (currentAmount === null) return;
-        const newAmount = parseFloat(currentAmount);
-        if (isNaN(newAmount) || newAmount === 0) {
-          alert('Invalid amount');
-          return;
-        }
-
-        isBusy = true;
-        statusEl.textContent = '🟠 Updating...';
-        statusEl.className = 'status syncing';
-        clearInterval(pollInterval);
-        await loadFromCloud();
-
-        const record = allRecords.find(r => r.id === id);
-        if (record) {
-          const win = newAmount > 0 ? Math.abs(newAmount) : 0;
-          const lose = newAmount < 0 ? Math.abs(newAmount) : 0;
-          record.win = win;
-          record.lose = lose;
-          record.net = win - lose;
-        }
-
-        await saveToCloud();
-        updateTables();
-        await loadFromCloud();
-        startPolling();
-        isBusy = false;
+      if (btn.classList.contains('edit-btn') || btn.classList.contains('delete-btn')) {
+        // Do nothing - buttons are disabled functionally
+        return;
       }
     });
 
@@ -323,7 +287,7 @@
         return row;
       }).join('');
 
-      // === Individual Entries (no Amount column, newest first) ===
+      // === Individual Entries ===
       const rawTbody = document.querySelector('#rawRecordsTable tbody');
       rawTbody.innerHTML = allRecords.map(r => {
         const netDisplay = r.net >= 0 ? `+$${r.net.toLocaleString()}` : `−$${Math.abs(r.net).toLocaleString()}`;
