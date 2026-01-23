@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2026 Mahjong Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Nunito', sans-serif; background: linear-gradient(135deg, #FCE1F3 0%, #D7E9FF 50%, #CDEAC0 100%); min-height: 100vh; padding: 20px; }
@@ -23,7 +25,7 @@
       cursor: not-allowed; 
       opacity: 0.5; 
     }
-    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; }
+    .stats-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); margin-bottom: 30px; }
     table { width: 100%; border-collapse: collapse; min-width: 600px; }
     th { background: #FF8AB3; color: white; padding: 15px; text-align: center; font-weight: 700; }
     td { padding: 15px; text-align: center; border-bottom: 1px solid #eee; }
@@ -31,7 +33,7 @@
     .positive { background: #CDEAC0 !important; font-weight: 700; }
     .negative { background: #FFB3BA !important; font-weight: 700; }
 
-    /* Compact individual entries */
+    /* Compact entries table */
     #rawRecordsTable { font-size: 14px; }
     #rawRecordsTable th, #rawRecordsTable td { padding: 8px 10px; }
     #rawRecordsTable .action-btns button { 
@@ -53,11 +55,14 @@
 
     .version { text-align: center; font-size: 14px; color: #666; margin-top: 20px; }
 
+    #cumulativeChartContainer { height: 500px; margin-bottom: 30px; }
+
     @media (max-width: 768px) {
       .input-card { flex-direction: column; }
       th, td { padding: 10px; font-size: 14px; }
       input, select { min-width: 100%; }
       #rawRecordsTable th, #rawRecordsTable td { padding: 6px; font-size: 12px; }
+      #cumulativeChartContainer { height: 400px; }
     }
   </style>
   <script defer data-domain="mahjong2026.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script>
@@ -79,7 +84,7 @@
         <option>Rosie</option>
       </select>
       <input type="number" id="amountInput" placeholder="Amount HKD">
-      <button type="submit" id="addButton" disabled>Add ✨</button>
+      <button type="submit" id="addButton">Add ✨</button>
     </form>
 
     <!-- Player Totals -->
@@ -117,6 +122,14 @@
       </table>
     </div>
 
+    <!-- Cumulative Line Graph -->
+    <div class="stats-card">
+      <h3>📈 Cumulative Win/Loss Over Time</h3>
+      <div id="cumulativeChartContainer">
+        <canvas id="cumulativeChart"></canvas>
+      </div>
+    </div>
+
     <!-- Individual Entries -->
     <div class="stats-card">
       <h3>🗒️ Entries</h3>
@@ -133,7 +146,7 @@
       </table>
     </div>
 
-    <p class="version">Version V5 - Deployed January 12, 2026</p>
+    <p class="version">Version V6 - Deployed January 23, 2026</p>
   </div>
 
   <script>
@@ -146,6 +159,7 @@
     let allRecords = [];
     let isBusy = false;
     let pollInterval;
+    let cumulativeChart = null;
 
     async function loadFromCloud() {
       if (isBusy) return;
@@ -157,11 +171,13 @@
           allRecords.forEach((r, i) => r.id = r.id || (allRecords.length - i));
           allRecords.sort((a, b) => b.id - a.id);
           updateTables();
+          updateCumulativeChart();
           statusEl.textContent = `🟢 Online — ${allRecords.length} records`;
           statusEl.className = 'status connected';
         } else if (res.status === 404) {
           allRecords = [];
           updateTables();
+          updateCumulativeChart();
           await saveToCloud();
           statusEl.textContent = '🟢 Online — Ready';
           statusEl.className = 'status connected';
@@ -169,6 +185,7 @@
       } catch (e) {
         allRecords = [];
         updateTables();
+        updateCumulativeChart();
         statusEl.textContent = '🔴 Offline — Try again later';
         statusEl.className = 'status offline';
       }
@@ -194,18 +211,18 @@
     loadFromCloud();
     startPolling();
 
-    // No add, edit, or delete functionality
+    // Disabled interactions
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      // Do nothing - addition is disabled
+      // Addition disabled
     });
 
     document.querySelector('#rawRecordsTable tbody').addEventListener('click', (e) => {
-      // Do nothing - edit & delete are disabled
+      // Edit & Delete disabled
     });
 
     function updateTables() {
-      // === Player Totals ===
+      // Player Totals
       const totals = {};
       players.forEach(p => totals[p] = {net: 0});
       allRecords.forEach(r => {
@@ -229,7 +246,7 @@
         </tr>`;
       }).join('');
 
-      // === Daily Win/Loss Grid ===
+      // Daily Win/Loss Grid
       const byDate = {};
       allRecords.forEach(r => {
         if (!byDate[r.date]) byDate[r.date] = {};
@@ -252,7 +269,7 @@
         return row;
       }).join('');
 
-      // === Individual Entries ===
+      // Individual Entries
       const rawTbody = document.querySelector('#rawRecordsTable tbody');
       rawTbody.innerHTML = allRecords.map(r => {
         const netDisplay = r.net >= 0 ? `+$${r.net.toLocaleString()}` : `−$${Math.abs(r.net).toLocaleString()}`;
@@ -267,6 +284,95 @@
           </td>
         </tr>`;
       }).join('');
+    }
+
+    function updateCumulativeChart() {
+      // Group by date and compute cumulative
+      const byDate = {};
+      allRecords.forEach(r => {
+        if (!byDate[r.date]) byDate[r.date] = {};
+        if (!byDate[r.date][r.player]) byDate[r.date][r.player] = 0;
+        byDate[r.date][r.player] += Number(r.net);
+      });
+
+      const dates = Object.keys(byDate).sort((a, b) => a.localeCompare(b)); // chronological
+
+      const datasets = players.map(player => {
+        const data = dates.map(date => {
+          return (byDate[date] && byDate[date][player]) || 0;
+        });
+
+        // Cumulative sum
+        let cumulative = 0;
+        const cumulativeData = data.map(value => {
+          cumulative += value;
+          return cumulative;
+        });
+
+        return {
+          label: player,
+          data: cumulativeData,
+          borderColor: getPlayerColor(player),
+          backgroundColor: getPlayerColor(player) + '33',
+          fill: false,
+          tension: 0.3,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        };
+      });
+
+      const ctx = document.getElementById('cumulativeChart').getContext('2d');
+
+      if (cumulativeChart) cumulativeChart.destroy();
+
+      cumulativeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { font: { size: 13 } }
+            },
+            title: {
+              display: true,
+              text: 'Cumulative Win/Loss by Player – 2026',
+              font: { size: 16 }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: 'Date' }
+            },
+            y: {
+              title: { display: true, text: 'Cumulative $ (positive = net winning)' },
+              grid: { drawBorder: true }
+            }
+          },
+          elements: {
+            line: { borderWidth: 2 }
+          }
+        }
+      });
+    }
+
+    // Simple color mapping for players
+    function getPlayerColor(player) {
+      const colors = {
+        'Anfern': '#4CAF50',
+        'Anders': '#2196F3',
+        'Gina': '#FF9800',
+        'Kaylee': '#9C27B0',
+        'Marco': '#E91E63',
+        'Philip': '#009688',
+        'Rosie': '#607D8B'
+      };
+      return colors[player] || '#757575';
     }
   </script>
 </body>
